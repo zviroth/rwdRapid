@@ -47,7 +47,7 @@ clear d concatInfo sumResponse subResponse roiMeanTseries meanResponse roiTC sub
 clear contrast spatFreq nullTrial contrastConcat spatFreqConcat nullTrialConcat designMatContrast designMatFreq nullDeconv deconvMatNull meanDeconvNull
 clear taskResp taskPrediction meanPupil
 clear ecg ecgPeaks ecgPeaksDiff ecgPeaksAmp resp respPeaks respPeaksDiff respPeaksAmp
-clear designMatContrastFreq designMatNull taskBaseline
+clear designMatContrastFreq designMatNull taskBaseline meanDeconvFreq meanDeconvContrastFreq
 
 deconvLength = 10;
 
@@ -91,6 +91,7 @@ for iSub = 1:numSubs
         deconvMatNull{rwdTypeNum} = [];
         deconvMatContrast{rwdTypeNum} = [];
         deconvMatFreq{rwdTypeNum} = [];
+        deconvMatContrastFreq{rwdTypeNum} = [];
         
                 %create  vector with a 1 for each trial in a single run, to be convolved with the
         %task response (null trials). This is identical for all runs!
@@ -162,6 +163,18 @@ for iSub = 1:numSubs
             end
             deconvMatFreqRun(end+1,:) = ones;
             deconvMatFreq{rwdTypeNum} = [deconvMatFreq{rwdTypeNum} deconvMatFreqRun];
+            
+            %sf & contrast deconvolution matrix
+            deconvMatContrastFreqRun = zeros((size(contrastSfMat{r},1)-1)*deconvLength,size(contrastSfMat{r},2));
+            for c=1:numFreqs*numContrasts
+                for j=1:deconvLength
+                    deconvMatContrastFreqRun((c-1)*deconvLength+j,:) = [zeros(1,j-1) contrastSfMat{r}(c,1:end-j+1)];%shift and pad with zeros
+                end
+            end
+            deconvMatContrastFreqRun(end+1,:) = ones;
+            deconvMatContrastFreq{rwdTypeNum} = [deconvMatContrastFreq{rwdTypeNum} deconvMatContrastFreqRun];
+
+            
         end
     end
     
@@ -243,6 +256,8 @@ for iSub = 1:numSubs
             %deconvolution with frequency predictors
             freqDeconv{iSub,iRoi,rwdTypeNum} = deconvMatFreq{rwdTypeNum}'\roiTC{iSub,iRoi,rwdTypeNum}.tSeries';
             
+            %deconvolution with frequency & contrast predictors
+            contrastFreqDeconv{iSub,iRoi,rwdTypeNum} = deconvMatContrastFreq{rwdTypeNum}'\roiTC{iSub,iRoi,rwdTypeNum}.tSeries';
 
             
             %get the null response
@@ -264,7 +279,7 @@ for iSub = 1:numSubs
                     meanDeconvContrast(iSub,iRoi,rwdTypeNum,c,t) = nanmean(contrastDeconv{iSub,iRoi,rwdTypeNum}((c-1)*deconvLength+t,:));%mean over voxels
                 end
             end
-            meanDeconvContrastConstant(iSub,iRoi,rwdTypeNum) = nanmean(contrastDeconv{iSub,iRoi,rwdTypeNum}(2*deconvLength+1,:));
+            meanDeconvContrastConstant(iSub,iRoi,rwdTypeNum) = nanmean(contrastDeconv{iSub,iRoi,rwdTypeNum}(numContrasts*deconvLength+1,:));
 
             %get mean deconvolved frequency responses
             for c=1:numFreqs
@@ -272,7 +287,15 @@ for iSub = 1:numSubs
                     meanDeconvFreq(iSub,iRoi,rwdTypeNum,c,t) = nanmean(freqDeconv{iSub,iRoi,rwdTypeNum}((c-1)*deconvLength+t,:));%mean over voxels
                 end
             end
-            meanDeconvFreqConstant(iSub,iRoi,rwdTypeNum) = nanmean(freqDeconv{iSub,iRoi,rwdTypeNum}(2*deconvLength+1,:));
+            meanDeconvFreqConstant(iSub,iRoi,rwdTypeNum) = nanmean(freqDeconv{iSub,iRoi,rwdTypeNum}(numFreqs*deconvLength+1,:));
+
+            %get mean deconvolved contrast & frequency responses
+            for c=1:numFreqs*numContrasts
+                for t=1:deconvLength
+                    meanDeconvContrastFreq(iSub,iRoi,rwdTypeNum,c,t) = nanmean(contrastFreqDeconv{iSub,iRoi,rwdTypeNum}((c-1)*deconvLength+t,:));%mean over voxels
+                end
+            end
+            meanDeconvContrastFreqConstant(iSub,iRoi,rwdTypeNum) = nanmean(contrastFreqDeconv{iSub,iRoi,rwdTypeNum}(numFreqs*numContrasts*deconvLength+1,:));
 
             
             
@@ -356,7 +379,8 @@ save([dataFolder 'rwdRapidData_fittedHrf.mat'], 'dataFolder', 'subFolders', 'sam
     'taskResp','taskBaseline', 'nullBetas', 'contrastBetas','sfBetas','sfContrastBetas', ...
     'trialTC','meanDeconvNull','meanDeconvNullConstant','meanDeconvFreqConstant','nullDeconvBetas',...
     'meanDeconvContrastConstant', 'meanDeconvContrast', ...
-    'meanDeconvFreqConstant', 'meanDeconvFreq');
+    'meanDeconvFreqConstant', 'meanDeconvFreq',...
+    'meanDeconvContrastFreq', 'meanDeconvContrastFreqConstant');
 
 
 %%

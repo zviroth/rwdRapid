@@ -6,7 +6,8 @@ load([dataFolder 'rwdRapidData_fittedHrf.mat'], 'dataFolder', 'subFolders', 'sam
     'taskResp','taskBaseline', 'nullBetas', 'contrastBetas','sfBetas','sfContrastBetas', ...
     'trialTC','meanDeconvNull','meanDeconvNullConstant','meanDeconvFreqConstant','nullDeconvBetas',...
     'meanDeconvContrastConstant', 'meanDeconvContrast', ...
-    'meanDeconvFreqConstant', 'meanDeconvFreq');
+    'meanDeconvFreqConstant', 'meanDeconvFreq',...
+    'meanDeconvContrastFreq', 'meanDeconvContrastFreqConstant');
 rwdString = {'high','low'};
 plotColors = {[0 0 1], [1 0 0], [0 1 0], [0.5 1 0.2], [1 0.2 0.5] };
 plotStyles = {'-','--',':','-.','-','--',':','-.'};
@@ -16,6 +17,7 @@ plotStyles = {'-','--',':','-.','-','--',':','-.'};
 % subFolders = {'009020190325/'};%no pupil size difference
 % subFolders = {'001920190403/'};%very bad eye tracking
 %%
+numRois=2;
 clear stdResp
 for iSub = 1:numSubs
     subString{iSub} = subFolders{iSub}(1:4);
@@ -223,28 +225,51 @@ for iSub = 1:numSubs
 end
 subSumSfBetasWithTask = subSumSfBetasWithTask./numSubs;
 
-%spatial frequency betas after removing task response
+% %spatial frequency betas after removing task response
+% i=i+1;
+% figure(i)
+% clf
+% rows=numRois;
+% cols=numSubs;
+% subSumSfBetas=zeros(numRois,2,numFreqs);
+% for iSub = 1:numSubs
+%     for iRoi=1:numRois
+%         subplot(rows,cols,iSub+(iRoi-1)*cols)
+%         for rwd=1:2
+%             temp = nanmean(sfBetas{iSub,iRoi,rwd}(1:end-1,:),2);
+% %             temp = temp+repmat(nanmean(sfBetas{iSub,iRoi,rwd}(end,:)),numFreqs,1);%adding the constant beta ??
+%             subSumSfBetas(iRoi,rwd,:) = squeeze(subSumSfBetas(iRoi,rwd,:)) + temp;
+%             plot(temp, 'Color',plotColors{rwd},'linewidth', 1); hold on
+%         end
+%         xlabel('time (TR)');
+%         title([subString{iSub} ' ' roiNames{iRoi}])
+%         if iSub==1 & iRoi==1; legend('high','low'); end
+%     end
+% end
+% subSumSfBetas = subSumSfBetas./numSubs;
+
+% spatial frequency & contrast timecourse without removing task response
 i=i+1;
-figure(i)
+figure(i) 
 clf
 rows=numRois;
 cols=numSubs;
-subSumSfBetas=zeros(numRois,2,numFreqs);
+subSumDeconvContrastFreq=zeros(numRois,2,numFreqs*numContrasts,trialLength);
 for iSub = 1:numSubs
     for iRoi=1:numRois
         subplot(rows,cols,iSub+(iRoi-1)*cols)
         for rwd=1:2
-            temp = nanmean(sfBetas{iSub,iRoi,rwd}(1:end-1,:),2);
-%             temp = temp+repmat(nanmean(sfBetas{iSub,iRoi,rwd}(end,:)),numFreqs,1);%adding the constant beta ??
-            subSumSfBetas(iRoi,rwd,:) = squeeze(subSumSfBetas(iRoi,rwd,:)) + temp;
-            plot(temp, 'Color',plotColors{rwd},'linewidth', 1); hold on
+            for c=1:numFreqs*numContrasts
+                temp = squeeze(meanDeconvContrastFreq(iSub,iRoi, rwd,c,:));
+                subSumDeconvContrastFreq(iRoi,rwd,c,:) = squeeze(subSumDeconvContrastFreq(iRoi,rwd,c,:)) + temp;%summing across subjects
+                plot(temp, 'Color',plotColors{rwd},'linewidth', 1); hold on
+            end
         end
-        xlabel('time (TR)');
-        title([subString{iSub} ' ' roiNames{iRoi}])
         if iSub==1 & iRoi==1; legend('high','low'); end
     end
 end
-subSumSfBetas = subSumSfBetas./numSubs;
+subSumDeconvContrastFreq = subSumDeconvContrastFreq./numSubs;
+
 
 %spatial frequency & contrast betas without removing task response
 i=i+1;
@@ -320,7 +345,7 @@ i=i+1;
 figure(i)
 clf
 rows=numRois;
-cols=9;
+cols=10;
 j=1;
 for iRoi=1:numRois
     subplot(rows,cols,j+(iRoi-1)*cols)
@@ -331,6 +356,7 @@ for iRoi=1:numRois
     xlabel('time (TR)');
     if iRoi==1; legend('high','low'); end
 end
+%null and stim
 j=j+1;
 for iRoi=1:numRois
     subplot(rows,cols,j+(iRoi-1)*cols)
@@ -344,15 +370,25 @@ for iRoi=1:numRois
     if iRoi==1; legend('high stim','high null','low stim', 'low null'); end
 end
 
+% null minus stim
+j=j+1;
+for iRoi=1:numRois
+    subplot(rows,cols,j+(iRoi-1)*cols)
+    for rwd=1:2
+        plot(squeeze(subSumDeconvNull(iRoi,rwd,1,:)) - squeeze(subSumDeconvNull(iRoi,rwd,2,:)), 'Color',plotColors{rwd},'linewidth', 1); hold on
+    end
+    xlabel('time (TR)');
+    title(roiNames{iRoi})
+    if iRoi==1; legend('high stim-null','low stim-null'); end
+end
+
 %subSumNullBetas
 j=j+1;
 for iRoi=1:numRois
     subplot(rows,cols,j+(iRoi-1)*cols)
     for rwd=1:2
-        for c=1:2
             plot(squeeze(subSumNullBetas(iRoi,rwd,:)), plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
 %             plot(squeeze(subSumContrastBetas(iRoi,rwd,:)), plotStyles{2},'Color',plotColors{rwd},'linewidth', 1); hold on
-        end
     end
     title(roiNames{iRoi})
 %     xlabel('contrast');
@@ -360,8 +396,6 @@ for iRoi=1:numRois
     xticklabels({'stim','null'});
     if iRoi==1; legend('high rwd','low rwd'); end
 end
-
-
 
 %contrast timecourse
 j=j+1;
@@ -376,15 +410,24 @@ for iRoi=1:numRois
     title(roiNames{iRoi})
     if iRoi==1; legend('high rwd low contrast','high rwd high contrast','low rwd low contrast', 'low rwd high contrast'); end
 end
+% high contrast minus low contrast
+j=j+1;
+for iRoi=1:numRois
+    subplot(rows,cols,j+(iRoi-1)*cols)
+    for rwd=1:2
+        plot(squeeze(subSumDeconvContrast(iRoi,rwd,2,:)) - squeeze(subSumDeconvContrast(iRoi,rwd,1,:)), 'Color',plotColors{rwd},'linewidth', 1); hold on
+    end
+    xlabel('time (TR)');
+    title(roiNames{iRoi})
+    if iRoi==1; legend('high high-low contrast','low high-low contrast'); end
+end
 %contrast betas
 j=j+1;
 for iRoi=1:numRois
     subplot(rows,cols,j+(iRoi-1)*cols)
     for rwd=1:2
-        for c=1:2
             plot(squeeze(subSumContrastBetasWithTask(iRoi,rwd,:)), plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
 %             plot(squeeze(subSumContrastBetas(iRoi,rwd,:)), plotStyles{2},'Color',plotColors{rwd},'linewidth', 1); hold on
-        end
     end
     title(roiNames{iRoi})
     xlabel('contrast');
@@ -410,10 +453,8 @@ j=j+1;
 for iRoi=1:numRois
     subplot(rows,cols,j+(iRoi-1)*cols)
     for rwd=1:2
-        for c=1:2
             plot(squeeze(subSumSfBetasWithTask(iRoi,rwd,:)), plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
 %             plot(squeeze(subSumSfBetas(iRoi,rwd,:)), plotStyles{2},'Color',plotColors{rwd},'linewidth', 1); hold on
-        end
     end
     title(roiNames{iRoi})
     xlabel('frequency');
@@ -421,34 +462,73 @@ for iRoi=1:numRois
 %         xticklabels({'high','low'});
     if iRoi==1; legend('high rwd','low rwd'); end
 end
+
+
+%sf + contrast betas
 j=j+1;
 for iRoi=1:numRois
     subplot(rows,cols,j+(iRoi-1)*cols)
     for rwd=1:2
-        for c=1:2
             plot([squeeze(subSumSfContrastBetasWithTask(iRoi,rwd,1:5)); NaN; squeeze(subSumSfContrastBetasWithTask(iRoi,rwd,6:end))], plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
 %             plot([squeeze(subSumSfContrastBetas(iRoi,rwd,1:5)); NaN; squeeze(subSumSfContrastBetas(iRoi,rwd,6:end))], plotStyles{2},'Color',plotColors{rwd},'linewidth', 1); hold on
-        end
     end
     title(roiNames{iRoi})
     if iRoi==1; legend('high rwd','low rwd'); end
 end
 
 
-%sf + contrast with task removed
-j=j+1;
-for iRoi=1:numRois
-    subplot(rows,cols,j+(iRoi-1)*cols)
-    for rwd=1:2
-        for c=1:2
-%             plot([squeeze(subSumSfContrastBetasWithTask(iRoi,rwd,1:5)); NaN; squeeze(subSumSfContrastBetasWithTask(iRoi,rwd,6:end))], plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
-            plot([squeeze(subSumSfContrastBetas(iRoi,rwd,1:5)); NaN; squeeze(subSumSfContrastBetas(iRoi,rwd,6:end))], plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
-        end
-    end
-    title(roiNames{iRoi})
-    if iRoi==1; legend('high rwd','low rwd'); end
-end
+% %sf + contrast with task removed
+% j=j+1;
+% for iRoi=1:numRois
+%     subplot(rows,cols,j+(iRoi-1)*cols)
+%     for rwd=1:2
+% %             plot([squeeze(subSumSfContrastBetasWithTask(iRoi,rwd,1:5)); NaN; squeeze(subSumSfContrastBetasWithTask(iRoi,rwd,6:end))], plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
+%             plot([squeeze(subSumSfContrastBetas(iRoi,rwd,1:5)); NaN; squeeze(subSumSfContrastBetas(iRoi,rwd,6:end))], plotStyles{1},'Color',plotColors{rwd},'linewidth', 1); hold on
+%     end
+%     title(roiNames{iRoi})
+%     if iRoi==1; legend('high rwd','low rwd'); end
+% end
 %%
+
+%surface plot of average frequency time courses
+i=i+1;
+figure(i)
+clf
+rows = numRois;
+cols=2;
+X=repmat(1:trialLength, numFreqs,1);
+Y=repmat(1:numFreqs, trialLength,1)';
+
+for iRoi=1:numRois
+    for rwd=1:2
+        subplot(rows,cols,rwd+(iRoi-1)*cols)
+        Z=squeeze(subSumDeconvFreq(iRoi,rwd,:,:));
+        surf(X,Y,Z);
+        title([roiNames{iRoi} ' ' rwdString{rwd} ' rwd']);
+        xlabel('time (TR)');
+        ylabel('frequency');
+    end
+end
+
+%surface plot of average high-low contrast frequency time courses
+i=i+1;
+figure(i)
+clf
+rows = numRois;
+cols=2;
+X=repmat(1:trialLength, numFreqs,1);
+Y=repmat(1:numFreqs, trialLength,1)';
+for iRoi=1:numRois
+    for rwd=1:2
+        subplot(rows,cols,rwd+(iRoi-1)*cols)
+        Z=squeeze(subSumDeconvContrastFreq(iRoi,rwd,numFreqs+1:2*numFreqs,:) - subSumDeconvContrastFreq(iRoi,rwd,1:numFreqs,:));
+        surf(X,Y,Z);
+        title([roiNames{iRoi} ' ' rwdString{rwd} ' rwd: high-low contrast' ]);
+        xlabel('time (TR)');
+        ylabel('frequency');
+    end
+end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [] = plotRwdStimSegments(meanPupil, allTimes)
