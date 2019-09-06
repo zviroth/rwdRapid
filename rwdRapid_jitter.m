@@ -10,11 +10,14 @@
 %                 Subsequent runs have a fixed threshold, no feedback, and pay a reward.    
 
 function [] = rwdRapid_jitter(varargin)
+
+tic
+
 clear fixStimulus
 pauseDuration = 1;
-minThreshold = 0.15;
-maxThreshold = 0.5;
-nullTrials = [0 0 0 1];
+minThreshold = 0.1;
+maxThreshold = 0.4;
+% nullTrials = [0 0 0 1];
 
 % % evaluate the input arguments
 getArgs(varargin, [], 'verbose=0');
@@ -26,12 +29,14 @@ if ieNotDefined('displayName'), displayName = 'laptop'; end
 if ieNotDefined('waitForBacktick')
     if strcmp(displayName, 'rm315') || strcmp(displayName, 'laptop')
         waitForBacktick = 0;
+        numTrials = 20;
     else
         waitForBacktick = 1;
+        numTrials = inf;
     end
 end
 if ieNotDefined('useStaircase'), useStaircase = 1; end
-if ieNotDefined('threshStair1'), threshStair1 = 0.1; end
+if ieNotDefined('threshStair1'), threshStair1 = 0.3; end
 if ieNotDefined('threshStair2'), threshStair2 = maxThreshold; end
 if useStaircase==0
     threshStair1 = (threshStair1+threshStair2)/2;
@@ -42,25 +47,26 @@ end
 
 interTime = 2;
 cueTime = 0.5;
-responseTime=2;
+responseTime=1.5;
 stimLen = interTime;%should be a multiple of frameLen
 % if ieNotDefined('stimLen'),stimLen = 2*interTime + 2*stimTime + responseTime;end %should be equal to fixation trial length
 %also, should be a multiple of frameLen
 
 % if ieNotDefined('trialLen'),trialLen = 15;end %in seconds
-if ieNotDefined('trialLenMin'), trialLenMin = 6; end%at least 5, for cues+stimulus+response time
-if ieNotDefined('trialLenMax'), trialLenMax = 15; end
+if ieNotDefined('trialLenMin'), trialLenMin = 4.5; end%at least 4.5, for cues+stimulus+response time
+if ieNotDefined('trialLenMax'), trialLenMax = 9; end
+if ieNotDefined('TR'), TR = 1.5; end
 if ieNotDefined('frameLen'),frameLen = stimLen/4; end
 if ieNotDefined('innerEdge'),innerEdge = 1.3; end
 if ieNotDefined('outerEdge'),outerEdge = 50; end
 if ieNotDefined('rewardType'), rewardType = 'L'; end
 if ieNotDefined('runNum'), runNum = 1; end
-if ieNotDefined('probRwd'), probRwd = 0; end
-if ieNotDefined('currBal'), currBal = 00; end
+if ieNotDefined('currBal'), currBal = 0; end
 % if ieNotDefined('fixThresh'), fixThresh = 0.2; end
 if ieNotDefined('numTRs'), numTRs = 170; end
 TR=1.5;
-if ieNotDefined('numTrials'), numTrials = inf;end%ceil(TR*numTRs/trialLen); end
+% if ieNotDefined('numTrials'), numTrials = inf;end%ceil(TR*numTRs/trialLen); end
+if ieNotDefined('maxNumTrials'), maxNumTrials = 150;end%used for randVars.len_
 
 
 incrRwdL = -0.01;%reward decreases on every low reward run
@@ -99,10 +105,11 @@ stimulus.outer = outerEdge;
 stimulus.currBal = currBal;
 stimulus.rewardType = rewardType;
 stimulus.rewardValue = rewardValue;
-stimulus.probRwd = probRwd;
 stimulus.runNum = runNum;
 
 % initalize the screen
+myscreen.marginOfSafety = 0.1; %cut timing of last segment of subsidiary
+myscreen.trialLenMax = stimulus.trialLenMax;
 myscreen.background = 'gray';
 myscreen.autoCloseScreen = 0;
 myscreen.allowpause = 1;
@@ -121,6 +128,7 @@ global fixStimulus
 % fixStimulus.trialLenMin = trialLenMin;
 % fixStimulus.trialLenMax = trialLenMax;
 % fixStimulus.trialLength = trialLen;
+fixStimulus.minThreshold = minThreshold;
 fixStimulus.cueTime = cueTime;
 fixStimulus.interTime = interTime;
 fixStimulus.responseTime = responseTime;
@@ -170,20 +178,25 @@ task{2}{1}.waitForBacktick = waitForBacktick;
 %contrast,and spatial frequency.
 % seglen = [fixStimulus.cueTime stimulus.frameLen * ones(1,stimulus.stimLen/stimulus.frameLen) stimulus.trialLen-(stimulus.stimLen+fixStimulus.cueTime)];
 
+
 seglenMin = [fixStimulus.cueTime stimulus.frameLen * ones(1,stimulus.stimLen/stimulus.frameLen) stimulus.trialLenMin-(stimulus.stimLen+fixStimulus.cueTime)];
 seglenMax = [fixStimulus.cueTime stimulus.frameLen * ones(1,stimulus.stimLen/stimulus.frameLen) stimulus.trialLenMax-(stimulus.stimLen+fixStimulus.cueTime)];
+if waitForBacktick
+    seglenMin(end) = seglenMin(end) - myscreen.marginOfSafety;%shorten blank segment length to be sure we finish before the trigger
+    seglenMax(end) = seglenMax(end) - myscreen.marginOfSafety;%shorten blank segment length to be sure we finish before the trigger
+end
 
 
-% if waitForBacktick
-%     seglen(end) = stimulus.trialLen-stimulus.stimLen - 0.5;%shorten blank segment length to be sure we finish before the trigger
-% end
 % task{2}{1}.seglen = seglen;
 task{2}{1}.segmin = seglenMin;
 task{2}{1}.segmax = seglenMax;
+task{2}{1}.segquant = [seglenMin(1:end-1) TR];
+
+
 task{2}{1}.synchToVol = zeros(size(seglenMin));
-% if waitForBacktick
-%     task{2}{1}.synchToVol(end) = 1;
-% end
+if task{2}{1}.waitForBacktick
+    task{2}{1}.synchToVol(end) = 1;
+end
 
 
 
@@ -191,12 +204,14 @@ orientations = linspace(0, 180, 7);
 stimulus.orientations = orientations(1:end-1);
 
 % stimulus properties, block randomized
-stimulus.contrasts = logspace(-0.7,0,2);
+% stimulus.contrasts = [0 0.1 0.3 1];%logspace(-0.7,0,2);
+stimulus.contrasts = [0 0 logspace(-0.7,0,2) logspace(-0.7,0,2) logspace(-0.7,0,2)];
 task{2}{1}.randVars.block.contrast = 1:length(stimulus.contrasts);
 % task{2}{1}.randVars.block.contrast = logspace(-0.7,0,5);
 stimulus.freqs = logspace(-0.3,0.5,5);
 task{2}{1}.randVars.block.spatFreq = 1:length(stimulus.freqs);
-task{2}{1}.randVars.block.nullTrial = nullTrials; %determines proportion of null trials
+% task{2}{1}.randVars.block.nullTrial = nullTrials; %determines proportion of null trials
+task{2}{1}.randVars.len_ = maxNumTrials;
 
 task{2}{1}.random = 1;
 task{2}{1}.numTrials = numTrials;
@@ -266,14 +281,8 @@ end
 % print out command for next run
 
 %calculate reward for this run
-if probRwd
-    randP = randperm(task{1}{1}.numTrials);
-    randRun = randP(1)
-    rwd = task{1}{1}.correctness(randRun) * task{1}{1}.numTrials * stimulus.rewardValue;
-    rwd = task{1}{1}.correctness(randRun) * task{1}{1}.numTrials * stimulus.rewardValue;
-else
+
     rwd = sum(task{1}{1}.correctness) * stimulus.rewardValue;
-end
 
 stimulus.currBal = stimulus.currBal + rwd;
 disp(sprintf('\n% --------------------------------------------- %\n'));
@@ -327,6 +336,8 @@ mglWaitSecs(pauseDuration);
 myscreen.stimulus = stimulus; %save stimulus
 myscreen = endTask(myscreen,task);
 
+toc
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % function that gets called at the start of each segment
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -340,7 +351,7 @@ if task.thistrial.thisseg == 1
 end
 
 
-if any(task.thistrial.thisseg == stimulus.stimulusSegments) && (~task.thistrial.nullTrial)
+if any(task.thistrial.thisseg == stimulus.stimulusSegments) %&& (~task.thistrial.nullTrial)
     icontrast = task.thistrial.contrast;
     ifreq = task.thistrial.spatFreq;
     newOri = stimulus.oriNum;
@@ -352,7 +363,7 @@ if any(task.thistrial.thisseg == stimulus.stimulusSegments) && (~task.thistrial.
     stimulus.rotation = stimulus.orientations(newOri);
 end
 
-if task.numTrials == task.trialnum && task.thistrial.thisseg==length(task.seglen)
+if task.numTrials == task.trialnum && task.thistrial.thisseg==task.numsegs
     disp('last trial');
 end
 
@@ -366,7 +377,7 @@ global stimulus;
 % clear the screen
 mglClearScreen;
 
-if any(task.thistrial.thisseg == stimulus.stimulusSegments) && (~task.thistrial.nullTrial)
+if any(task.thistrial.thisseg == stimulus.stimulusSegments) %&& (~task.thistrial.nullTrial)
     % draw the texture
     mglBltTexture(stimulus.tex, [0 0 stimulus.height stimulus.height], 0, 0, stimulus.rotation);
     mglBltTexture(stimulus.innerMaskTex, [0 0 stimulus.height stimulus.height], 0, 0, 0);
@@ -515,11 +526,10 @@ end
 global fixStimulus;
 myscreen = initStimulus('fixStimulus',myscreen);
 
-minThreshold=0.05;
 
 % if ~isfield(fixStimulus,'precueTime'); fixStimulus.precueTime = 3; end%trial length in seconds
 % if ~isfield(fixStimulus,'trialLength'); fixStimulus.trialLength = 18; end%trial length in seconds
-if ~isfield(fixStimulus,'trialLenMax'); fixStimulus.trialLenMax = 17; end
+if ~isfield(fixStimulus,'trialLenMax'); fixStimulus.trialLenMax = myscreen.trialLenMax; end
  
 if ~isfield(fixStimulus,'cueTime'); fixStimulus.cueTime = 0.1; end%cue length in seconds
 if ~isfield(fixStimulus,'interTime'); fixStimulus.interTime = 3; end%time between cues in seconds
@@ -567,8 +577,11 @@ mglTextSet(fixStimulus.digitFont,fixStimulus.digitSize,fixStimulus.digitColor,0,
 
 % create a fixation task
 task{1}.seglen = [fixStimulus.cueTime fixStimulus.interTime ...
-    fixStimulus.cueTime fixStimulus.responseTime inf];%this task waits for the other task to start the trial
+fixStimulus.cueTime fixStimulus.responseTime-myscreen.marginOfSafety inf];%this task waits for the other task to start the trial
 
+if fixStimulus.waitForBacktick
+    task{1}.seglen(end-1) = task{1}.seglen(end-1) - myscreen.marginOfSafety;%in total subtracting 2*margin
+end
 % if fixStimulus.waitForBacktick
 %     task{1}.seglen(end) = task{1}.seglen(end) - 0.5;
 % end
@@ -584,9 +597,9 @@ task{1}.synchToVol = zeros(size(task{1}.seglen));
 
 % init a 2 down 1 up staircase
 fixStimulus.stair{1} = upDownStaircase(1,2,fixStimulus.threshStair1,fixStimulus.stairStepSize,0);
-fixStimulus.stair{1}.minThreshold = minThreshold;
+fixStimulus.stair{1}.minThreshold = fixStimulus.minThreshold;
 fixStimulus.stair{2} = upDownStaircase(1,2,fixStimulus.threshStair2,fixStimulus.stairStepSize,0);
-fixStimulus.stair{2}.minThreshold = minThreshold;
+fixStimulus.stair{2}.minThreshold = fixStimulus.minThreshold;
 
 % init the task
 [task{1}, myscreen] = initTask(task{1},myscreen,@fixStartSegmentCallback,@fixDrawStimulusCallback,@fixTrialResponseCallback,@fixTrialStartCallback);
@@ -702,9 +715,14 @@ timeIntoTrial = mglGetSecs(task.thistrial.trialstart);
 trialDigitIndex = ceil(timeIntoTrial/task.thistrial.SOA);
 
 %check whether we're moving on to the next digit
-if trialDigitIndex > task.thistrial.digitIndex
+    % ????????
+%if it is the last trial, this can continue for some reason, so we need to keep showing the last digit
+% ????????
+
+if trialDigitIndex > task.thistrial.digitIndex && task.thistrial.digitIndex<length(task.thistrial.digitStream)
     task.thistrial.digitIndex = task.thistrial.digitIndex+1;%should now equal trialDigitIndex
 %     mglDeleteTexture(fixStimulus.displayText);
+    
     task.thistrial.currentDigit = task.thistrial.digitStream(task.thistrial.digitIndex);
     task.thistrial.currentText = num2str(task.thistrial.currentDigit);
 
