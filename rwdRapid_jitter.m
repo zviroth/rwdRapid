@@ -9,6 +9,7 @@
 %                 First run uses 2 staircases, has feedback, and reward is 0.
 %                 Subsequent runs have a fixed threshold, no feedback, and pay a reward.    
 
+
 function [] = rwdRapid_jitter(varargin)
 
 tic
@@ -226,7 +227,9 @@ end
 
 
 % do our initialization which creates the gratings
+myscreen = initStimulus('stimulus',myscreen);
 stimulus = myInitStimulus(stimulus,myscreen,task);
+
 % stimulus.orientations = orientations;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -297,7 +300,7 @@ elseif stimulus.rewardType == 'L'
     %     newRewardValue = initRwdH + incrRwdH * newRunNum/2;
 end
 
-disp(['rwdRapid(''rewardType=''''' newRewardType ...
+disp(['rwdRapid_jitter(''rewardType=''''' newRewardType ...
     ''''''',''runNum=' num2str(newRunNum) ...
     ''',''useStaircase=0' ...
     ''',''currBal=' num2str(stimulus.currBal) ...
@@ -390,6 +393,10 @@ end
 % function to init the dot stimulus
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function stimulus = myInitStimulus(stimulus,myscreen,task)
+
+
+
+
 % keep an array that lists which of the segments we
 % are presenting the stimulus in.
 % stimulus.stimulusSegments = 1:stimulus.stimLen/stimulus.frameLen;
