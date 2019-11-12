@@ -27,15 +27,7 @@ getArgs(varargin, [], 'verbose=0');
 % if ieNotDefined('direction'),direction = -1;end
 
 if ieNotDefined('displayName'), displayName = 'laptop'; end
-if ieNotDefined('waitForBacktick')
-    if strcmp(displayName, 'rm315') || strcmp(displayName, 'laptop')
-        waitForBacktick = 0;
-        numTrials = 20;
-    else
-        waitForBacktick = 1;
-        numTrials = inf;
-    end
-end
+
 if ieNotDefined('useStaircase'), useStaircase = 1; end
 if ieNotDefined('threshStair1'), threshStair1 = 0.3; end
 if ieNotDefined('threshStair2'), threshStair2 = maxThreshold; end
@@ -68,12 +60,22 @@ if ieNotDefined('numTRs'), numTRs = 170; end
 TR=1.5;
 % if ieNotDefined('numTrials'), numTrials = inf;end%ceil(TR*numTRs/trialLen); end
 if ieNotDefined('maxNumTrials'), maxNumTrials = 150;end%used for randVars.len_
-
+if ieNotDefined('waitForBacktick')
+    if strcmp(displayName, 'rm315') || strcmp(displayName, 'laptop')
+        waitForBacktick = 0;
+        numTrials = 20;
+        estNumTrials = numTrials;
+    else
+        waitForBacktick = 1;
+        numTrials = inf;
+        estNumTrials = ceil(2*numTRs/(trialLenMin+trialLenMax));
+    end
+end
 
 incrRwdL = -0.01;%reward decreases on every low reward run
-incrRwdH = 0.04;%reward increases on every high reward run
+incrRwdH = 0.02;%reward increases on every high reward run
 initRwdL = 0.06;%reward for first low reward run
-initRwdH = 0.5;%reward for first high reward run
+initRwdH = 0.2;%reward for first high reward run
 
 if runNum==1
     rewardValue = 0;
@@ -164,6 +166,7 @@ end
 
 [task{1} myscreen] = myFixStairInitTask(myscreen);
 task{1}{1}.numTrials = numTrials;
+task{1}{1}.estNumTrials = estNumTrials;
 % task{1}{1}.nTrials = numTrials;
 % task{1}{1}.response = zeros(numTrials,1);
 % task{1}{1}.correctResponse = zeros(numTrials,1);
@@ -241,7 +244,7 @@ myscreen = eyeCalibDisp(myscreen);
 
 %initial screen
 mglClearScreen;
-totalRwd = task{1}{1}.numTrials * stimulus.rewardValue; %incr;
+totalRwd = task{1}{1}.estNumTrials * stimulus.rewardValue; %incr;
 mglTextSet('Helvetica',50,[1 1 1],0,0,0,0,0,0,0);
 %     if stimulus.rewardType == 'H';
 %         text = sprintf('This is a high-reward run');
@@ -284,7 +287,13 @@ end
 % print out command for next run
 
 %calculate reward for this run
-
+%if there were no responses for the end, need to fill the responses with
+%blanks.
+if length(task{1}{1}.correctness)<task{1}{1}.trialnum
+    task{1}{1}.correctness(task{1}{1}.trialnum) = 0;
+end
+%no response is considered an incorrect response!!
+task{1}{1}.correctness(task{1}{1}.correctness==0) = -1;%should only be 1 or -1
     rwd = sum(task{1}{1}.correctness) * stimulus.rewardValue;
 
 stimulus.currBal = stimulus.currBal + rwd;
@@ -771,7 +780,7 @@ task.response(task.trialnum) = find(task.thistrial.buttonState);
 % get correct or incorrect
 % response = find(task.thistrial.buttonState) == task.thistrial.sigInterval;
 response = task.response(task.trialnum) == correctResponse;
-response = response(1);
+response = response(1);%only the first response counts
 
 % task.correctness(task.trialnum) = 2*response(1)-1;%1 or -1
 task.correctness(task.trialnum) = 2*response-1;%1 or -1
