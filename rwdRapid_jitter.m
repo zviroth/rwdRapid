@@ -15,7 +15,7 @@ function [] = rwdRapid_jitter(varargin)
 tic
 
 clear fixStimulus
-pauseDuration = 1;
+pauseDuration = 4;
 minThreshold = 0.1;
 maxThreshold = 0.4;
 % nullTrials = [0 0 0 1];
@@ -26,7 +26,7 @@ getArgs(varargin, [], 'verbose=0');
 % set default parameters
 % if ieNotDefined('direction'),direction = -1;end
 
-if ieNotDefined('displayName'), displayName = 'laptop'; end
+if ieNotDefined('displayName'), displayName = '3tb'; end
 
 if ieNotDefined('useStaircase'), useStaircase = 1; end
 if ieNotDefined('threshStair1'), threshStair1 = 0.3; end
@@ -59,11 +59,11 @@ if ieNotDefined('currBal'), currBal = 0; end
 if ieNotDefined('numTRs'), numTRs = 170; end
 TR=1.5;
 % if ieNotDefined('numTrials'), numTrials = inf;end%ceil(TR*numTRs/trialLen); end
-if ieNotDefined('maxNumTrials'), maxNumTrials = 150;end%used for randVars.len_
+if ieNotDefined('maxNumTrials'), maxNumTrials = 60;end%used for randVars.len_
 if ieNotDefined('waitForBacktick')
     if strcmp(displayName, 'rm315') || strcmp(displayName, 'laptop')
         waitForBacktick = 0;
-        numTrials = 20;
+        numTrials = 30;
         estNumTrials = numTrials;
     else
         waitForBacktick = 1;
@@ -267,9 +267,11 @@ mglClearScreen(); mglFlush; mglClearScreen();
 % mglFixationCross(fixStimulus.fixWidth,fixStimulus.fixLineWidth,[0 1 1], [0 0]) % default fixation cross
 mglFlush
 % mglFixationCross(fixStimulus.fixWidth,fixStimulus.fixLineWidth,[0 1 1], [0 0]) % default fixation cross
+mglStrokeText( '1', 0, 0, fixStimulus.digitSizeX, fixStimulus.digitSizeY, fixStimulus.digitWidth, [1 1 1], 0 ); 
+mglFlush
 if ~waitForBacktick
-    mglStrokeText( '1', 0, 0, fixStimulus.digitSizeX, fixStimulus.digitSizeY, fixStimulus.digitWidth, [1 1 1], 0 ); 
-    mglFlush
+%     mglStrokeText( '1', 0, 0, fixStimulus.digitSizeX, fixStimulus.digitSizeY, fixStimulus.digitWidth, [1 1 1], 0 ); 
+%     mglFlush
     mglWaitSecs(3);
 end
 
