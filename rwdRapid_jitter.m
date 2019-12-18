@@ -59,7 +59,7 @@ if ieNotDefined('currBal'), currBal = 0; end
 if ieNotDefined('numTRs'), numTRs = 170; end
 TR=1.5;
 % if ieNotDefined('numTrials'), numTrials = inf;end%ceil(TR*numTRs/trialLen); end
-if ieNotDefined('maxNumTrials'), maxNumTrials = 60;end%used for randVars.len_
+if ieNotDefined('maxNumTrials'), maxNumTrials = 45;end%used for randVars.len_
 if ieNotDefined('waitForBacktick')
     if strcmp(displayName, 'rm315') || strcmp(displayName, 'laptop')
         waitForBacktick = 0;
