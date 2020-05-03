@@ -2,15 +2,20 @@ close all
 mrQuit
 clear all
 tic
-toZscore=0;%0 or 1
-concatProj= 1;
+toZscore=1;%0 or 1
+concatProj= 0;
 dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
+saveFolder = '~/rwdFmri/';
 subFolders = {'010620190823','001920190515','008020190509','007420190529',...
     '007520190715','008320190523','009020190515','009720190603','010420190805',...
     '010720190911',...
     '005520190411','008620190410','008720190503','009920190627'};
-
-roiNames = {'benson','leftBenson', 'rightBenson'};
+% subFolders = {'001920190515','008020190509','007420190529',...
+%     '007520190715','008320190523','009020190515','009720190603','010420190805',...
+%     '010720190911',...
+%     '005520190411','008620190410','008720190503','009920190627'};
+% roiNames = {'benson','leftBenson', 'rightBenson'};
+roiNames = {'benson','leftBenson', 'rightBenson','lh_17Networks_16','rh_17Networks_16','leftCerebellarCortex','rightCerebellarCortex'};
 
 
 eccMin = 0.2;
@@ -55,9 +60,11 @@ for iSub=1:numSubs
     v = loadAnalysis(v, 'mrDispOverlayAnal/templateRet.mat');
     for iRoi = 1:length(roiNames)
         bensonData = loadROIbensonMatching(v,roiNames{iRoi},1,templateGroup,1,concatGroupNum);
-        eccen{iSub,iRoi} = bensonData{1}.eccen;
-        ang{iSub,iRoi} = bensonData{1}.ang;
-        areas{iSub,iRoi} = bensonData{1}.areas;
+        if size(bensonData,1)>0%no benson data for other ROIs
+            eccen{iSub,iRoi} = bensonData{1}.eccen;
+            ang{iSub,iRoi} = bensonData{1}.ang;
+            areas{iSub,iRoi} = bensonData{1}.areas;
+        end
     end
     
     
@@ -124,14 +131,14 @@ concatProjStr = '';
 if concatProj
     concatProjStr = 'proj';
 end
-save([dataFolder 'roiTC_' zScoreString concatProjStr '.mat'], 'dataFolder', 'subFolders', 'roiNames', ...
+save([saveFolder 'roiTC_' zScoreString concatProjStr '.mat'], 'dataFolder', 'subFolders', 'roiNames', ...
     'numRuns','numTRs','concatInfo',...
     'frames', 'junkedFrames', 'TR', 'trialsPerRun', 'trialLength', 'nVolumes',...
     'nbins','binBorders','binCenters',...
     'eccen','ang','areas',...
     'numVox','roiTC','nullTrialsTRs',...
     'nullTrialsRun','nullTrials','contrastTrialsRun','freqTrialsRun','contrastTrials','freqTrials',...
-    'nullTseries','nullTrialTseries','stimTseries','stimTrialTseries');
+    'nullTseries','nullTrialTseries','stimTseries','stimTrialTseries','-v7.3');
 toc
 
 %% mean null trials

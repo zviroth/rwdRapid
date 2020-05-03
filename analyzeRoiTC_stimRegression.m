@@ -1,18 +1,13 @@
 close all
 mrQuit
 clear all
-bensonROIs = 1%[1:3];
-eccMin = 0.2;
-eccMax = 70;
-nbins = 12;
 saveFigs=1;
 tic
 toZscore=1;%0 or 1
-concatProj= 0;
+concatProj= 1;
 % dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
 dataFolder = '/Users/rothzn/rwdFmri/';
-freqs = logspace(-0.3,0.5,5);
-contrasts = logspace(-0.7,0,2);
+
 %Load eyetracking data
 load([dataFolder 'rwdRapidEyeData.mat'], 'subFolders', 'samplerate',  ...
     'trialsPerRun', 'trialLength', ...
@@ -108,13 +103,10 @@ for iSub=1:length(goodSubs)
         phNullPupil{iSub,rwd} = angle(f(:,2));
         ampNullPupil{iSub,rwd} = abs(f(:,2));
         
-        
-        
-        
-        
-        stimFreqTrials = freqTrials{goodSubs(iSub),rwd}(stimTrials{goodSubs(iSub),rwd}==1);
-        for iRoi=1:length(roiNames)
-            for ifreq=1:max(freqTrials{goodSubs(iSub),rwd})
+
+        for iRoi=1:length(roiNames)       
+            stimFreqTrials = freqTrials{goodSubs(iSub),rwd}(stimTrials{goodSubs(iSub),rwd}==1);
+            for ifreq=1:max(freqTrials{goodSubs(iSub),rwd})                                
                 subRoiRwdFreqTseries{iSub,iRoi,rwd,ifreq} = squeeze(nanmean(stimTrialTseries{goodSubs(iSub),iRoi,rwd}(:,:,stimFreqTrials==ifreq)));%mean across voxels
             end
             
@@ -138,14 +130,12 @@ for iSub=1:length(goodSubs)
     subBaseStimPupil{iSub} = [baseStimPupil{iSub,1}; baseStimPupil{iSub,2}];
     subPhStimPupil{iSub} = [phStimPupil{iSub,1}; phStimPupil{iSub,2}];
     subAmpStimPupil{iSub} = [ampStimPupil{iSub,1}; ampStimPupil{iSub,2}];
-    subStimPupilStdMedian(iSub) = nanmedian(subStdStimPupil{iSub});
-    subStimPupilBaseMedian(iSub) = nanmedian(subBaseStimPupil{iSub});
     
     subStdNullPupil{iSub} = [stdNullPupil{iSub,1}; stdNullPupil{iSub,2}];
     subBaseNullPupil{iSub} = [baseNullPupil{iSub,1}; baseNullPupil{iSub,2}];
     subPhNullPupil{iSub} = [phNullPupil{iSub,1}; phNullPupil{iSub,2}];
     subAmpNullPupil{iSub} = [ampNullPupil{iSub,1}; ampNullPupil{iSub,2}];
-    
+
     %pulse stats
     subStimPulse{iSub} = [rwdPulseTrials{goodSubs(iSub),1}(:,stimTrials{goodSubs(iSub),1}==1) rwdPulseTrials{goodSubs(iSub),2}(:,stimTrials{goodSubs(iSub),2}==1)];%concatenate pulse of null trials
     subStimPulseStd{iSub} = std(subStimPulse{iSub});
@@ -171,31 +161,14 @@ for iSub=1:length(goodSubs)
     f=fft(subNullResp{iSub});
     subNullRespPh{iSub} = angle(f(2,:));
     subNullRespAmp{iSub} = abs(f(2,:));
-    
-    
-    
-    %get mean pupil for high and low contrast, and for frequencies
-    stimPupilConcat{iSub} = [stimPupil{goodSubs(iSub),1}(:,1:7500); stimPupil{goodSubs(iSub),2}(:,1:7500)];
-    
-    stimContrastTrials = [contrastTrials{goodSubs(iSub),1}(stimTrials{goodSubs(iSub),1}==1) contrastTrials{goodSubs(iSub),2}(stimTrials{goodSubs(iSub),2}==1)];
-    for icontrast=1:max(stimContrastTrials)
-        contrastPupil{iSub,icontrast} = stimPupilConcat{iSub}(stimContrastTrials==icontrast,:);
-        meanContrastPupil(iSub,icontrast,:) = nanmean(contrastPupil{iSub,icontrast});
-    end
-    
-    stimFreqTrials = [freqTrials{goodSubs(iSub),1}(stimTrials{goodSubs(iSub),1}==1) freqTrials{goodSubs(iSub),2}(stimTrials{goodSubs(iSub),2}==1)];
-    for ifreq=1:max(stimFreqTrials)
-        freqPupil{iSub,ifreq} = stimPupilConcat{iSub}(stimFreqTrials==ifreq,:);
-        meanFreqPupil(iSub,ifreq,:) = nanmean(freqPupil{iSub,ifreq});
-    end
-    
-    
+ 
+
     %concatenate physio design matrcies
     pulseDesignMat{iSub} = [designMatPulse{iSub,1} designMatPulse{iSub,2}];
     respDesignMat{iSub} = [designMatResp{iSub,1} designMatResp{iSub,2}];
     respPulseDesignMat{iSub} = [designMatRespPulse{iSub,1} designMatRespPulse{iSub,2}] ;
     
-    for iRoi=1:length(roiNames)
+    for iRoi=1:length(roiNames)        
         %concatenate across rwd
         for ifreq=1:size(subRoiRwdFreqTseries,4)
             subRoiFreqTseries{iSub,iRoi,ifreq} = [subRoiRwdFreqTseries{iSub,iRoi,1,ifreq} subRoiRwdFreqTseries{iSub,iRoi,2,ifreq}];
@@ -207,46 +180,47 @@ for iSub=1:length(goodSubs)
         subRoiStdStim{iSub,iRoi} = [rwdRoiStdStim{iSub,iRoi,1}'; rwdRoiStdStim{iSub,iRoi,2}'];
         subRoiAmpStim{iSub,iRoi} = [rwdRoiAmpStim{iSub,iRoi,1}'; rwdRoiAmpStim{iSub,iRoi,2}'];
         subRoiPhStim{iSub,iRoi} = [rwdRoiPhStim{iSub,iRoi,1}'; rwdRoiPhStim{iSub,iRoi,2}'];
-        
+
         subNullTrialTseries{iSub,iRoi} = [roiNullTrialTseries{iSub,iRoi,1} roiNullTrialTseries{iSub,iRoi,2}];
         subRoiStdNull{iSub,iRoi} = [rwdRoiStdNull{iSub,iRoi,1}'; rwdRoiStdNull{iSub,iRoi,2}'];
         subRoiAmpNull{iSub,iRoi} = [rwdRoiAmpNull{iSub,iRoi,1}'; rwdRoiAmpNull{iSub,iRoi,2}'];
         subRoiPhNull{iSub,iRoi} = [rwdRoiPhNull{iSub,iRoi,1}'; rwdRoiPhNull{iSub,iRoi,2}'];
-        
+
         %concatenate across rwd for physio regression
-        %         subTseries{iSub,iRoi} = nanmean([roiTC{iSub,iRoi,1}.tSeries roiTC{iSub,iRoi,2}.tSeries]);%mean over voxels
-        
-        %         pulseKernelRoi(iSub,iRoi,:) = pulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
-        %         respKernelRoi(iSub,iRoi,:) = respDesignMat{iSub}'\subTseries{iSub,iRoi}';
-        %         respPulseKernelRoi(iSub,iRoi,:) = respPulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
-        
+        subTseries{iSub,iRoi} = nanmean([roiTC{iSub,iRoi,1}.tSeries roiTC{iSub,iRoi,2}.tSeries]);%mean over voxels
+
+        pulseKernelRoi(iSub,iRoi,:) = pulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
+        respKernelRoi(iSub,iRoi,:) = respDesignMat{iSub}'\subTseries{iSub,iRoi}';
+        respPulseKernelRoi(iSub,iRoi,:) = respPulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
+
     end
     
     iRoi=1;
-    %     pulsePupilBensonNull{iSub} = [subNullRespStd{iSub}', subNullRespMean{iSub}',subNullPulseStd{iSub}', subNullPulseMean{iSub}', ...
-    %         subStdNullPupil{iSub}, subAmpNullPupil{iSub}, subBaseNullPupil{iSub}, subPhNullPupil{iSub}, ...
-    %         subRoiAmpNull{iSub,iRoi}, subRoiStdNull{iSub,iRoi}, subRoiPhNull{iSub,iRoi}];
-    %     [corrPulsePupilBensonNull(iSub,:,:) pvalPulsePupilBensonNull(iSub,:,:)] = corr(pulsePupilBensonNull{iSub},'rows','complete');
-    
+    pulsePupilBensonNull{iSub} = [subNullRespStd{iSub}', subNullRespMean{iSub}',subNullPulseStd{iSub}', subNullPulseMean{iSub}', ...
+        subStdNullPupil{iSub}, subAmpNullPupil{iSub}, subBaseNullPupil{iSub}, subPhNullPupil{iSub}, ...
+        subRoiAmpNull{iSub,iRoi}, subRoiStdNull{iSub,iRoi}, subRoiPhNull{iSub,iRoi}];
+    [corrPulsePupilBensonNull(iSub,:,:) pvalPulsePupilBensonNull(iSub,:,:)] = corr(pulsePupilBensonNull{iSub},'rows','complete');
+ 
 end
 meanFreqTrialStd = squeeze(std(meanFreqTrial,0,4));
 %%
-
+eccMin = 0.2;
+eccMax = 70;
+nbins = 8;
 binBorders = logspace(log10(eccMin),log10(eccMax),nbins+1);
 nbins = length(binBorders)-1;
 for i=2:length(binBorders)
     binCenters(i-1) = (binBorders(i)+binBorders(i-1))/2;
 end
-
 for iSub=1:length(goodSubs)
-    for iRoi=bensonROIs%1:length(roiNames) %length(bensonROIs)
+    for iRoi=1:length(roiNames)
         for ibin=1:nbins
             for rwd=1:2
                 binVoxels = eccen{goodSubs(iSub),iRoi}>binBorders(ibin) & eccen{goodSubs(iSub),iRoi}<=binBorders(ibin+1);
                 numBinVoxels(iSub,iRoi,ibin) = sum(binVoxels);
-                %                                 binVoxels = binVoxels & areas{goodSubs(iSub),iRoi}==1;%ONLY V1
+                %                 binVoxels = binVoxels & areas{iSub,iRoi}==1;%ONLY V1
                 binVoxels = binVoxels & areas{goodSubs(iSub),iRoi}>0;%ONLY V1,V2,V3
-                binMeanTseries = nanmean(roiTC{goodSubs(iSub),iRoi,rwd}.tSeries(binVoxels,:),1);%mean timecourse across voxels
+                binMeanTseries = nanmean(roiTC{goodSubs(iSub),iRoi,rwd}.tSeries(binVoxels,:));%mean timecourse across voxels
                 binNullTseries{iSub,iRoi,ibin,rwd} = binMeanTseries(nullTrialsTRs{goodSubs(iSub),rwd}==1);
                 binNullTrialTseries{iSub,iRoi,ibin,rwd} = reshape(binNullTseries{iSub,iRoi,ibin,rwd},trialLength,[]);%iSub,T,trial
                 %get fMRI response amplitude
@@ -257,48 +231,29 @@ for iSub=1:length(goodSubs)
                 %stim
                 binStimTseries{iSub,iRoi,ibin,rwd} = binMeanTseries(nullTrialsTRs{goodSubs(iSub),rwd}==0);
                 binStimTrialTseries{iSub,iRoi,ibin,rwd} = reshape(binStimTseries{iSub,iRoi,ibin,rwd},trialLength,[]);%iSub,T,trial
-                
+
                 %frequency
-                %                 stimFreqTrials = freqTrials{goodSubs(iSub),rwd}(stimTrials{iSub,rwd}==1);
-                %                 binMeanTrials = reshape(binMeanTseries,trialLength,[]);
-                %                 for ifreq=1:max(freqTrials{goodSubs(iSub),rwd})
-                %                     subBinFreqTseries{iSub,iRoi,ibin,ifreq} = squeeze(nanmean(stimTrialTseries{goodSubs(iSub),iRoi,rwd}(:,:,stimFreqTrials==ifreq)));%mean across voxels
-                %                     subBinFreqMeanTrial(iSub,iRoi,ibin,ifreq,:)
-                %                 end
+%                 stimFreqTrials = freqTrials{goodSubs(iSub),rwd}(stimTrials{iSub,rwd}==1);
+%                 binMeanTrials = reshape(binMeanTseries,trialLength,[]);
+%                 for ifreq=1:max(freqTrials{goodSubs(iSub),rwd})
+%                     subBinFreqTseries{iSub,iRoi,ibin,ifreq} = squeeze(nanmean(stimTrialTseries{goodSubs(iSub),iRoi,rwd}(:,:,stimFreqTrials==ifreq)));%mean across voxels
+%                     subBinFreqMeanTrial(iSub,iRoi,ibin,ifreq,:)
+%                 end
             end
             %concatenate across rwd
             subBinNullTrialTseries{iSub,iRoi,ibin} = [binNullTrialTseries{iSub,iRoi,ibin,1} binNullTrialTseries{iSub,iRoi,ibin,2}];
             subBinStdNull{iSub,iRoi,ibin} = [rwdBinStdNull{iSub,iRoi,ibin,1}'; rwdBinStdNull{iSub,iRoi,ibin,2}'];
-            %             subBinAmpNull{iSub,iRoi,ibin} = [rwdBinAmpNull{iSub,iRoi,ibin,1}'; rwdBinAmpNull{iSub,iRoi,ibin,2}'];
-            %             subBinPhNull{iSub,iRoi,ibin} = [rwdBinPhNull{iSub,iRoi,ibin,1}'; rwdBinPhNull{iSub,iRoi,ibin,2}'];
+            subBinAmpNull{iSub,iRoi,ibin} = [rwdBinAmpNull{iSub,iRoi,ibin,1}'; rwdBinAmpNull{iSub,iRoi,ibin,2}'];
+            subBinPhNull{iSub,iRoi,ibin} = [rwdBinPhNull{iSub,iRoi,ibin,1}'; rwdBinPhNull{iSub,iRoi,ibin,2}'];
             
-            
+               
             subBinStimTrialTseries{iSub,iRoi,ibin} = [binStimTrialTseries{iSub,iRoi,ibin,1} binStimTrialTseries{iSub,iRoi,ibin,2}];
-            subStimTrialRwd(iSub,iRoi,1:size(binStimTrialTseries{iSub,iRoi,ibin,1},2)) = ones;
-            subStimTrialRwd(iSub,iRoi,size(binStimTrialTseries{iSub,iRoi,ibin,1},2)+1:end) = 2*ones;
-            %             [size(binStimTrialTseries{iSub,iRoi,ibin,1},2), size(binStimTrialTseries{iSub,iRoi,ibin,2},2)];
-            
+
             %frequency
-            stimFreqTrials = [freqTrials{goodSubs(iSub),1}(stimTrials{goodSubs(iSub),1}==1) freqTrials{goodSubs(iSub),2}(stimTrials{goodSubs(iSub),2}==1)];
-            for ifreq=1:max(freqTrials{goodSubs(iSub),rwd})
+            for ifreq=1:max(freqTrials{goodSubs(iSub),rwd})           
+                stimFreqTrials = [freqTrials{goodSubs(iSub),1}(stimTrials{goodSubs(iSub),1}==1) freqTrials{goodSubs(iSub),2}(stimTrials{goodSubs(iSub),2}==1)];
                 subBinFreqTseries{iSub,iRoi,ibin,ifreq} = subBinStimTrialTseries{iSub,iRoi,ibin}(:,stimFreqTrials==ifreq);
                 subBinFreqMeanTrial(iSub,iRoi,ibin,ifreq,:) = mean(subBinFreqTseries{iSub,iRoi,ibin,ifreq},2);
-                for rwd=1:2
-                    subBinFreqTseriesRwd = binStimTrialTseries{iSub,iRoi,ibin,rwd}(:,freqTrials{goodSubs(iSub),rwd}(stimTrials{goodSubs(iSub),rwd}==1)==ifreq);
-                    %                     subBinFreqTseriesRwd = binStimTrialTseries{iSub,iRoi,ibin,rwd}(:,stimTrials{goodSubs(iSub),rwd}==1);
-                    subBinFreqMeanTrialRwd(iSub,iRoi,ibin,rwd,ifreq,:) = mean(subBinFreqTseriesRwd,2);
-                end
-                for arousal=1:2
-                    if arousal==1
-%                         arousalTrials = subStdStimPupil{iSub}'>subStimPupilStdMedian(iSub);
-                        arousalTrials = subBaseStimPupil{iSub}'>subStimPupilBaseMedian(iSub);
-                    else
-%                         arousalTrials = subStdStimPupil{iSub}'<subStimPupilStdMedian(iSub);
-                        arousalTrials = subBaseStimPupil{iSub}'<subStimPupilBaseMedian(iSub);
-                    end
-                    subBinFreqTseriesArousal = subBinStimTrialTseries{iSub,iRoi,ibin}(:,stimFreqTrials==ifreq & arousalTrials);
-                    subBinFreqMeanTrialArousal(iSub,iRoi,ibin,arousal,ifreq,:) = mean(subBinFreqTseriesArousal,2);
-                end
             end
             %contrast
             for icontrast=1:max(contrastTrials{goodSubs(iSub),rwd})
@@ -308,83 +263,99 @@ for iSub=1:length(goodSubs)
             end
             
         end
+        % model null trials as linear combination of control ROI amplitude
+        controlRoiAmp{iSub,iRoi} = subBinStdNull{iSub,iRoi,nbins};
+        ampPredictors = [ones(size(controlRoiAmp{iSub,iRoi})) controlRoiAmp{iSub,iRoi} subBaseNullPupil{iSub} subStdNullPupil{iSub} subNullPulseStd{iSub}' subNullPulsePh{iSub}'];
+%         ampPredictors = [ones(size(controlRoiAmp{iSub,iRoi})) controlRoiAmp{iSub,iRoi}];
+
+%         predictors = [subBinAmpNull{iSub,iRoi,nbins} subNullPulseStd{iSub}' ];
+        controlRoiPh{iSub,iRoi} = subBinPhNull{iSub,iRoi,nbins};
+        controlRoiMeanResp = mean(subBinNullTrialTseries{iSub,iRoi,nbins},2);
+         f=fft(squeeze(controlRoiMeanResp));
+         controlRoiMeanPh(iSub,iRoi) = angle(f(2));
+         %make phase relative to the mean response.
+%         controlRoiPh{iSub,iRoi} = mod(controlRoiPh{iSub,iRoi} - controlRoiMeanPh(iSub,iRoi) + pi, 2*pi)-pi;
+%         phPredictors = [ones(size(controlRoiPh{iSub,iRoi})) controlRoiPh{iSub,iRoi} subBaseNullPupil{iSub}];
+%         phPredictors = [controlRoiPh{iSub,iRoi} subBaseNullPupil{iSub}];
+%         phPredictors = [ones(size(controlRoiPh{iSub,iRoi})) controlRoiPh{iSub,iRoi}];
+        phPredictors = [controlRoiPh{iSub,iRoi}];
         
+        for ibin=1:nbins
+            [subBinAmpNullCoef(iSub,iRoi,ibin,:),BINT,subBinAmpNullResid{iSub,iRoi,ibin}] = regress(subBinStdNull{iSub,iRoi,ibin},ampPredictors);
+            [subBinPhNullCoef(iSub,iRoi,ibin,:),BINT,subBinPhNullResid{iSub,iRoi,ibin}] = regress(subBinPhNull{iSub,iRoi,ibin},phPredictors);
+            
+
+            
+%             subBinAmpNullCoef(iSub,iRoi,ibin,:) = predictors\subBinAmpNull{iSub,iRoi,ibin};
+%             subBinAmpNullResid{iSub,iRoi,ibin} = subBinAmpNull{iSub,iRoi,ibin} - predictors*subBinAmpNullCoef(iSub,iRoi,ibin,:);
+%             pulseKernelRoi(iSub,iRoi,:) = pulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
+
+%             %convert phase values to be relative to mean response
+%             subBinPhNull{iSub,iRoi,ibin} = mod(subBinPhNull{iSub,iRoi,ibin} - meanPh(iSub,iRoi,ibin) + pi, 2*pi)-pi;
+
+%             estAmp = repmat(ampPredictors*squeeze(subBinAmpNullCoef(iSub,iRoi,ibin,:)),1,10);
+%             meanResp = repmat(zscore(squeeze(subBinMeanResp(iSub,iRoi,ibin,:))'),size(estAmp,1),1);
+%             subBinNullEst{iSub,iRoi,ibin} = estAmp.*meanResp;
+            subBinMeanResp(iSub,iRoi,ibin,:) = mean(subBinNullTrialTseries{iSub,iRoi,ibin},2);
+
+            amps{iSub,iRoi,ibin} = ampPredictors*squeeze(subBinAmpNullCoef(iSub,iRoi,ibin,:));%predicted amplitudes in STD
+            amps{iSub,iRoi,ibin} = amps{iSub,iRoi,ibin};
+            %predict response to be mean response X amplitude, shifted byphase
+            subBinNullAmpEst{iSub,iRoi,ibin} = amps{iSub,iRoi,ibin}.*zscore(squeeze(subBinMeanResp(iSub,iRoi,ibin,:))');
+            
+%             phShifts{iSub,iRoi,ibin} = -floor(phPredictors*squeeze(subBinPhNullCoef(iSub,iRoi,ibin,:))*trialLength/(2*pi));%Fourier phase inverse of circshift
+            
+            %make shifts relative to mean response timing?
+            f = fft(squeeze(subBinMeanResp(iSub,iRoi,ibin,:)));
+            subBinPh(iSub,iRoi,ibin) = angle(f(2));
+            %coefficients are the slope
+%             phShifts{iSub,iRoi,ibin} = -floor((phPredictors*squeeze(subBinPhNullCoef(iSub,iRoi,ibin,:) - subBinPh(iSub,iRoi,ibin))*trialLength/(2*pi)));%Fourier phase inverse of circshift
+            phShifts{iSub,iRoi,ibin} = -round((phPredictors*squeeze(subBinPhNullCoef(iSub,iRoi,ibin,:) )*trialLength/(2*pi)));%Fourier phase inverse of circshift
+
+            %use circ_corrcc instead of linear regression?
+            
+            
+            phShifts{iSub,iRoi,ibin}(isnan(phShifts{iSub,iRoi,ibin})) = zeros;
+            for itrial=1:size(subBinNullAmpEst{iSub,iRoi,ibin},1)
+                subBinNullEst{iSub,iRoi,ibin}(itrial,:) = circshift(subBinNullAmpEst{iSub,iRoi,ibin}(itrial,:),phShifts{iSub,iRoi,ibin}(itrial));
+            end
+ 
+%             subBinNullEst{iSub,iRoi,ibin} = predictors*squeeze(subBinAmpNullCoef(iSub,iRoi,ibin,:)).*squeeze(subBinMeanResp(iSub,iRoi,ibin,:))';
+            subBinNullAmpResid{iSub,iRoi,ibin} = subBinNullTrialTseries{iSub,iRoi,ibin}' - subBinNullAmpEst{iSub,iRoi,ibin};
+            subBinNullResid{iSub,iRoi,ibin} = subBinNullTrialTseries{iSub,iRoi,ibin} - subBinNullEst{iSub,iRoi,ibin}';
+            origVar(iSub,iRoi,ibin) = var(subBinNullTrialTseries{iSub,iRoi,ibin}(:));
+            residVar(iSub,iRoi,ibin) = nanvar(subBinNullResid{iSub,iRoi,ibin}(:));%some trials are NaNs!
+            ampResidVar(iSub,iRoi,ibin) = nanvar(subBinNullAmpResid{iSub,iRoi,ibin}(:));%some trials are NaNs!
+        end
     end
     
-end
+    iRoi=1;
 
+    for ihemi=1:2
+        hemiBinsNull{iSub,ihemi} = [subNullRespStd{iSub}',subNullRespAmp{iSub}', subNullRespMean{iSub}', subNullRespPh{iSub}'...
+            subNullPulseStd{iSub}',subNullPulseAmp{iSub}', subNullPulseMean{iSub}', subNullPulsePh{iSub}'...
+            subStdNullPupil{iSub}, subAmpNullPupil{iSub}, subBaseNullPupil{iSub}, subPhNullPupil{iSub}];%, ...
+        for ibin=1:nbins
+            hemiBinsNull{iSub,ihemi} =  [hemiBinsNull{iSub,ihemi}, subBinStdNull{iSub,1+ihemi,ibin}];
+        end
+        for ibin=1:nbins
+            hemiBinsNull{iSub,ihemi} =  [hemiBinsNull{iSub,ihemi}, subBinAmpNull{iSub,1+ihemi,ibin}];
+        end
+        for ibin=1:nbins
+            hemiBinsNull{iSub,ihemi} =  [hemiBinsNull{iSub,ihemi}, subBinPhNull{iSub,1+ihemi,ibin}];
+        end
+    end
+
+    [corrHemiBinsNull(iSub,:,:), pvalHemiBinsNull(iSub,:,:)] = corr(hemiBinsNull{iSub,1}, hemiBinsNull{iSub,2},'rows','complete');
+    
+end
+labels = {'resp std','resp amp', 'resp mean','resp phase',...
+    'pulse std','pulse amp', 'pulse mean', 'pulse phase',...
+    'pupil std', 'pupil amp', 'pupil baseline', 'pupil phase',...
+    'roi amp', 'roi std', 'roi phase'};
 
 meanBinFreqStd = std(subBinFreqMeanTrial,0,5);
 meanBinContrastStd = std(subBinContrastMeanTrial,0,5);
-
-meanBinFreqStdRwd = std(subBinFreqMeanTrialRwd,0,6);
-meanBinFreqStdArousal = std(subBinFreqMeanTrialArousal,0,6);
-
-
-toc
-
-%% FIT TUNING CURVES
-%% Fit SF tuning curves
-options = optimset('MaxFunEvals',500, 'MaxIter',500);%used by fminsearch
-% initParams = [3, 1, 1, 0];`
-initParams = [0, 10];
-
-for iRoi = bensonROIs
-    for ibin=1:nbins
-        d = squeeze(mean(meanBinFreqStd(:,iRoi,ibin,:)));
-        d = zscore(d);
-        myfunc = @(x) gaussianRms(x, d, freqs');
-        [x fval exflag] = fminsearch(myfunc, initParams, options);
-        sfStdTuning(iRoi,ibin,:) = x;
-        sfStdExitFlag(iRoi,ibin) = exflag;
-        sfStdRms(iRoi,ibin) = fval;%1 - correlation
-        for rwd=1:2
-            d = squeeze(mean(meanBinFreqStdRwd(:,iRoi,ibin,rwd,:)));
-            d = zscore(d);
-            myfunc = @(x) gaussianRms(x, d, freqs');
-            [x fval exflag] = fminsearch(myfunc, initParams, options);
-            sfStdTuningRwd(iRoi,ibin,rwd,:) = x;
-            sfStdExitFlagRwd(iRoi,ibin,rwd) = exflag;
-            sfStdRmsRwd(iRoi,ibin,rwd) = fval;%1 - correlation
-        end
-        for arousal=1:2
-            d = squeeze(mean(meanBinFreqStdArousal(:,iRoi,ibin,arousal,:)));
-            d = zscore(d);
-            myfunc = @(x) gaussianRms(x, d, freqs');
-            [x fval exflag] = fminsearch(myfunc, initParams, options);
-            sfStdTuningArousal(iRoi,ibin,arousal,:) = x;
-            sfStdExitFlagArousal(iRoi,ibin,arousal) = exflag;
-            sfStdRmsArousal(iRoi,ibin,arousal) = fval;%1 - correlation
-        end
-    end
-end
-
-% for ibin=1:nbins
-%     for rwd=1:2
-%         respStd = squeeze(mean(freqDeconvStd(:,ibin,rwd,:)));%responses
-%         myfunc = @(x) gaussianRms(x, respStd, (1:numFreqs)');
-%         [x fval exflag] = fminsearch(myfunc, initParams, options);
-%         x(3) = abs(x(3));
-%         sfStdTuning(ibin,rwd,:) = x;
-%         sfStdExitFlag(ibin,rwd) = exflag;
-%         sfStdRms(ibin,rwd) = fval;%fit RMS
-%
-%         for c=1:numContrasts
-%             respStd = squeeze(mean(contrastFreqDeconvStd(:,ibin,rwd,(c-1)*numFreqs+1:c*numFreqs)));%responses
-%             myfunc = @(x) gaussianRms(x, respStd, (1:numFreqs)');
-%             [x fval exflag] = fminsearch(myfunc, initParams, options);
-%             x(3) = abs(x(3));
-%             sfContrastStdTuning(ibin,rwd,c,:) = x;
-%             sfContrastStdExitFlag(ibin,rwd,c) = exflag;
-%             sfContrastStdRms(ibin,rwd,c) = fval;%fit RMS
-%         end
-%     end
-% end
-
-
-
-
-
 toc
 %%
 ifig=0;
@@ -392,11 +363,20 @@ plotColors = {[1 0 0], [0 0 1], [0 1 0], [1 1 0]};
 rows=length(roiNames);
 cols=6;
 linestyle = '-';
+%%
+ifig=ifig+1; figure(ifig); clf
+% imagesc(squeeze(mean(corrPulsePupilBenson)));
+imagesc(squeeze(mean(corrHemiBinsNull)));
 
+title('trial-by-trial correlation');
+yticklabels(labels);
+yticks(1:length(labels));
+set(gcf,'position',[100 100 800 700])
+% caxis([-1 1]);
 
 %%
-% respKernelRoi = zscore(respKernelRoi,0,3);
-% pulseKernelRoi = zscore(pulseKernelRoi,0,3);
+respKernelRoi = zscore(respKernelRoi,0,3);
+pulseKernelRoi = zscore(pulseKernelRoi,0,3);
 % respPulseKernelRoi = zscore(respPulseKernelRoi,0,3);
 
 %%
@@ -405,54 +385,72 @@ nfreqs=size(meanBinFreqStd,4);
 ncontrasts =size(meanBinContrastStd,4);
 ifig=ifig+1; figure(ifig); clf
 plotcmap = cool;
-rows=2; cols=3;
+rows=2; cols=2;
 %frequency
 subplot(rows,cols,1)
 for ifreq=1:nfreqs
     plot(squeeze(mean(meanBinFreqStd(:,iRoi,:,ifreq))),'Color',plotcmap(ceil(size(plotcmap,1)*ifreq/nfreqs),:))
-    hold on
+   hold on
 end
 xlabel('eccentricity bin');
 subplot(rows,cols,2)
 for ibin=1:nbins
     plot(squeeze(mean(meanBinFreqStd(:,iRoi,ibin,:))),'Color',plotcmap(ceil(size(plotcmap,1)*ibin/nbins),:))
-    hold on
+   hold on
 end
 xlabel('frequency')
-
-subplot(rows,cols,3)
-for ibin=1:nbins
-    plot(zscore(squeeze(mean(meanBinFreqStd(:,iRoi,ibin,:)))),'Color',plotcmap(ceil(size(plotcmap,1)*ibin/nbins),:))
-    hold on
-end
-xlabel('frequency')
-colormap cool
-colorbar
-
 %contrast
-subplot(rows,cols,cols+1)
+subplot(rows,cols,3)
 for icontrast=1:ncontrasts
     plot(squeeze(mean(meanBinContrastStd(:,iRoi,:,icontrast))),'Color',plotcmap(ceil(size(plotcmap,1)*icontrast/ncontrasts),:))
-    hold on
+   hold on
 end
 xlabel('eccentricity bin');
-subplot(rows,cols,cols+2)
+subplot(rows,cols,4)
 for ibin=1:nbins
     plot(squeeze(mean(meanBinContrastStd(:,iRoi,ibin,:))),'Color',plotcmap(ceil(size(plotcmap,1)*ibin/nbins),:))
-    hold on
+   hold on
 end
 xlabel('contrast')
-
-subplot(rows,cols,cols+3)
+%%
+ifig=ifig+1; figure(ifig); clf
+iSub=1;
+rows=5;
+cols=nbins;
+plotTrials = 1:3;
 for ibin=1:nbins
-    plot(zscore(squeeze(mean(meanBinContrastStd(:,iRoi,ibin,:)))),'Color',plotcmap(ceil(size(plotcmap,1)*ibin/nbins),:))
-    hold on
+   subplot(rows,cols,ibin)
+   plot(subBinNullTrialTseries{iSub,iRoi,ibin}(:,plotTrials));
+   subplot(rows,cols,ibin+cols)
+   plot(subBinNullAmpEst{iSub,iRoi,ibin}(plotTrials,:)');
+    subplot(rows,cols,ibin+2*cols)
+   plot(subBinNullAmpResid{iSub,iRoi,ibin}(plotTrials,:)');
+   subplot(rows,cols,ibin+3*cols)
+   plot(subBinNullEst{iSub,iRoi,ibin}(plotTrials,:)');
+   subplot(rows,cols,ibin+4*cols)
+   plot(subBinNullResid{iSub,iRoi,ibin}(:,plotTrials));
+%    plot(subBinNullTrialTseries{iSub,iRoi,ibin},'color',plotColors{1});
+%    subplot(rows,cols,ibin+cols)
+%    plot(subBinNullEst{iSub,iRoi,ibin}','color',plotColors{2});
+%     subplot(rows,cols,ibin+2*cols)
+%    plot(subBinNullResid{iSub,iRoi,ibin}','color',plotColors{3});
 end
-xlabel('contrast')
+%%
+mean([origVar(:) residVar(:) ampResidVar(:)])
+controlOrigVar = origVar(:,:,end); controlResidVar = residVar(:,:,end); controlAmpResidVar = ampResidVar(:,:,end);
+mean([controlOrigVar(:) controlResidVar(:) controlAmpResidVar(:)])
+
+%%
+ifig=ifig+1; figure(ifig); clf
+for ibin=1:nbins; clf; hist([subBinPhNull{iSub,iRoi,ibin} phShifts{iSub,iRoi,ibin}]); pause(1); end
+%%
+for ibin=1:nbins; clf; hist([subBinStdNull{iSub,iRoi,ibin} amps{iSub,iRoi,ibin}]); pause(1); end
+%%
+ifig=ifig+1; figure(ifig); clf
+plot(phShifts{1,1,nbins},subBinPhNull{1,1,nbins},'.')
 
 %% plot null and stim responses per bin
-
-rows=length(bensonROIs);
+rows=length(roiNames);
 cols=nbins;
 for scaled=0:1
     scaledStr = '';
@@ -460,7 +458,7 @@ for scaled=0:1
         scaledStr = '_scaled';
     end
     ifig=ifig+1; figure(ifig); clf
-    for iRoi=bensonROIs
+    for iRoi=1:length(roiNames)
         for ibin=1:nbins
             subplot(rows,cols,ibin + (iRoi-1)*cols)
             plot(mean(subBinStimTrialTseries{iSub,iRoi,ibin},2),'m');
@@ -474,134 +472,12 @@ for scaled=0:1
             if ~scaled
                 ylim([-0.6 1]);
                 if ibin>1
-                    yticks([]);
-                    yticklabels('');
+                   yticks([]);
+                   yticklabels('');
                 end
             end
         end
     end
     set(gcf,'position',[100 100 700 400])
     if saveFigs;  print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/rwdBinsNullVsStim' scaledStr '.pdf']); end;
-end
-
-%% SF tuning for ALL TRIALS
-ifig=ifig+1; figure(ifig); clf
-rows=length(bensonROIs);
-cols=nbins+2;
-for iRoi = bensonROIs
-    for ibin=1:nbins
-        subplot(rows,cols,ibin + (iRoi-1)*cols)
-        d = squeeze(mean(meanBinFreqStd(:,iRoi,ibin,:)));
-        zi = exp(-((log(freqs)-log(sfStdTuning(iRoi,ibin,1))).^2/2/sfStdTuning(iRoi,ibin,2)^2));
-        plot(freqs,zscore(d),'k')
-        hold on
-        errorbar(freqs,zscore(d), squeeze(std(zscore(meanBinFreqStd(:,iRoi,ibin,:),0,4))),'k');
-        plot(freqs,zscore(zi),'r');
-        title(num2str(1-sfStdRms(iRoi,ibin),'%.2f'));
-    end
-    subplot(rows,cols,cols-1 + (iRoi-1)*cols)
-    plot(sfStdTuning(iRoi,:,1));
-    subplot(rows,cols,cols + (iRoi-1)*cols)
-    plot(sfStdTuning(iRoi,:,2));
-end
-set(gcf,'position',[100 100 1000,500]);
-%% SF tuning for RWD
-ifig=ifig+1; figure(ifig); clf
-rows=2*length(bensonROIs);
-cols=nbins;
-temp = squeeze(mean(meanBinFreqStdRwd));%mean over subjects
-maxY= max(temp(:));
-minY = 0;%min(temp(:));
-for iRoi = bensonROIs
-    for rwd=1:2
-        for ibin=1:nbins
-            subplot(rows,cols,ibin + (iRoi-1)*2*cols + (rwd-1)*cols)
-            d = squeeze(mean(meanBinFreqStdRwd(:,iRoi,ibin,rwd,:)));
-            zi = exp(-((log(freqs)-log(sfStdTuningRwd(iRoi,ibin,rwd,1))).^2/2/sfStdTuningRwd(iRoi,ibin,rwd,2)^2));
-            plot(freqs,d,'k')
-            hold on
-%             errorbar(freqs,zscore(d), squeeze(std(zscore(meanBinFreqStdRwd(:,iRoi,ibin,rwd,:),0,5))),'k');
-            plot(freqs,mean(d) + zscore(zi)*std(d),'r');
-            hline(std(mean(subBinNullTrialTseries{iSub,iRoi,ibin},2)));
-            title(num2str(1-sfStdRmsRwd(iRoi,ibin,rwd),'%.2f'));
-            ylim([minY maxY]);
-        end
-%         subplot(rows,cols,cols-1 + (iRoi-1)*2*cols + (rwd-1)*cols)
-%         plot(sfStdTuningRwd(iRoi,:,rwd,1));
-%         subplot(rows,cols,cols + (iRoi-1)*2*cols + (rwd-1)*cols)
-%         plot(sfStdTuningRwd(iRoi,:,rwd,2));
-    end
-end
-set(gcf,'position',[100 100 1000,500]);
-
-%% SF tuning for AROUSAL
-ifig=ifig+1; figure(ifig); clf
-rows=2*length(bensonROIs);
-cols=nbins;%+2;
-temp = squeeze(mean(meanBinFreqStdArousal));%mean over subjects
-maxY= max(temp(:));
-minY = 0;%min(temp(:));
-for iRoi = bensonROIs
-    for rwd=1:2
-        for ibin=1:nbins
-            subplot(rows,cols,ibin + (iRoi-1)*2*cols + (rwd-1)*cols)
-            d = squeeze(mean(meanBinFreqStdArousal(:,iRoi,ibin,rwd,:)));
-            zi = exp(-((log(freqs)-log(sfStdTuningArousal(iRoi,ibin,rwd,1))).^2/2/sfStdTuningArousal(iRoi,ibin,rwd,2)^2));
-            plot(freqs,d,'k')
-            hold on
-            %             errorbar(freqs,d, squeeze(std(meanBinFreqStdArousal(:,iRoi,ibin,rwd,:))),'k');
-            plot(freqs,mean(d) + zscore(zi)*std(d),'r');
-            hline(std(mean(subBinNullTrialTseries{iSub,iRoi,ibin},2)));
-            title(num2str(1-sfStdRmsArousal(iRoi,ibin,rwd),'%.2f'));
-            ylim([minY maxY]);
-        end
-        %         subplot(rows,cols,cols-1 + (iRoi-1)*2*cols + (rwd-1)*cols)
-        %         plot(sfStdTuningArousal(iRoi,:,rwd,1));
-        %         subplot(rows,cols,cols + (iRoi-1)*2*cols + (rwd-1)*cols)
-        %         plot(sfStdTuningArousal(iRoi,:,rwd,2));
-    end
-end
-set(gcf,'position',[100 100 1000,500]);
-
-%% MEAN pupil for contrasts and frequencies
-ifig=ifig+1; figure(ifig); clf
-rows=1;
-cols=4;
-subplot(rows,cols,1)
-for icontrast=1:2
-    plot(squeeze(meanContrastPupil(:,icontrast,:))','color',plotColors{icontrast})
-    hold on
-end
-legend('high contrast');
-title('single subjects');
-subplot(rows,cols,2)
-plot(squeeze(meanContrastPupil(:,1,:) - meanContrastPupil(:,2,:))')
-hold all
-title('high - low contrast');
-subplot(rows,cols,3)
-for icontrast=1:2
-    plot(squeeze(mean(meanContrastPupil(:,icontrast,:)))','color',plotColors{icontrast})
-    hold on
-end
-title('group average');
-subplot(rows,cols,4)
-plot(squeeze(mean(meanFreqPupil))')
-title('spatial frequencies');
-% plot(squeeze(meanFreqPupil),'g')
-set(gcf,'position',[100 100 1000,300]);
-%%
-%%%%%
-function [c] = gaussianRms(x, orig, xi)
-% mean = x(1);
-% sigma = x(2);
-% amp = x(3);
-% baseline = x(4);
-% x(3) = abs(x(3));%so that we don't have inverted tuning curves
-% zi = x(4) + x(3)*exp(-((xi-x(1)).^2/2/x(2)^2));
-% c = sqrt(sum((orig-zi).^2));
-% if x(1)<0; x(1) = 0; end;
-zi = exp(-((log(xi)-log(x(1))).^2/2/x(2)^2));
-c = 1-corr(zi,orig);
-
-
 end
