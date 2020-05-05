@@ -1,9 +1,11 @@
 close all
 mrQuit
 clear all
+
+onlyCorrect=1;%0=all trials, 1=only correct, -1=only incorrect, 2=valid response
 ifig=0;
-nperms=20;
-arousalTypes = 1:3;%1-pupil baseline, 2-pupil std, 3-pulse std, 4-rwd, 5-DMN betas
+nperms=10;
+arousalTypes = 1:5;%1-pupil baseline, 2-pupil std, 3-pulse std, 4-rwd, 5-DMN betas
 includeControl=0;%left and right DMN trial amplitude
 includePulse = 0;
 subtractMean = 0;
@@ -31,7 +33,8 @@ ncontrasts=2;
 tic
 
 % dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
-dataFolder = 'c:\rwdFmri\';
+dataFolder = '/Users/rothzn/rwdFmri/';
+% dataFolder = 'c:\rwdFmri\';
 freqs = logspace(-0.3,0.5,5);
 contrasts = logspace(-0.7,0,2);
 %Load eyetracking data
@@ -42,7 +45,8 @@ load([dataFolder 'rwdRapidEyeData.mat'], 'subFolders', 'samplerate',  ...
     'rwdPupil','meanPupil','taskTimes',...
     'sacRun','pupilRun', 'numRuns','startTimes','endTimes','eyetrackerTime',...
     'nullTrials','nullPupil','stimPupil','meanNullPupil','meanStimPupil',...
-    'sacRunSmooth', 'sacRunSmoothTrialZeroFilled','sacRunSmoothTrial','L');
+    'sacRunSmooth', 'sacRunSmoothTrialZeroFilled','sacRunSmoothTrial','L',...
+    'trialCorrectness', 'trialResponse','trialCorrectResponse');
 eyeSubFolders = subFolders;
 eyeNullTrials = nullTrials;
 origNullPupil = nullPupil;
@@ -54,7 +58,7 @@ for iSub=1:size(nullTrials,1)
     end
 end
 eyeStimTrials = stimTrials;
-
+clear stimTrials
 baselineT = 25;
 
 
@@ -88,14 +92,16 @@ load([dataFolder 'roiTC_' zScoreString concatProjStr '.mat'], 'subFolders', 'roi
     'numVox','roiTC','nullTrialsTRs',...
     'nullTrialsRun','nullTrials','contrastTrialsRun','freqTrialsRun','contrastTrials','freqTrials',...
     'nullTseries','nullTrialTseries','stimTseries','stimTrialTseries');
-for iSub=1:size(nullTrials,1)
-    for rwd=1:2
-        stimTrials{iSub,rwd} = 1-nullTrials{iSub,rwd};
-        freqTrials{iSub,rwd} = freqTrials{iSub,rwd}.*stimTrials{iSub,rwd};%set null trials to 0
-        contrastTrials{iSub,rwd} = contrastTrials{iSub,rwd}.*stimTrials{iSub,rwd};%set null trials to 0
-    end
-end
-goodSubs = [1:12 14];
+% for iSub=1:size(nullTrials,1)
+%     for rwd=1:2
+%         stimTrials{iSub,rwd} = 1-nullTrials{iSub,rwd};
+%         freqTrials{iSub,rwd} = freqTrials{iSub,rwd}.*stimTrials{iSub,rwd};%set null trials to 0
+%         contrastTrials{iSub,rwd} = contrastTrials{iSub,rwd}.*stimTrials{iSub,rwd};%set null trials to 0
+%     end
+% end
+
+% goodSubs = [1:12 14];
+goodSubs = [1:14];
 % goodSubs = 1:2;
 %%
 nullPupilRwd = origNullPupil;
@@ -103,6 +109,36 @@ stimPupilRwd = origStimPupil;
 for iSub=1:length(goodSubs)
     
     for rwd=1:2
+        %find trials with correct type of response
+        temp = trialCorrectness{goodSubs(iSub),rwd}(:,2:end);%first trial is junked
+        rwdTrialCorrectness{iSub,rwd} = temp(:);
+        temp = trialResponse{goodSubs(iSub),rwd}(:,2:end);%first trial is junked
+        rwdTrialResponse{iSub,rwd} = temp(:);
+        switch onlyCorrect
+            case 0 %all trials
+                correctTrials{iSub,rwd} = ones(size(rwdTrialCorrectness{iSub,rwd}));
+            case 1 %only correct trials
+                correctTrials{iSub,rwd} = rwdTrialCorrectness{iSub,rwd}==1;
+            case -1 %only incorrect trials
+                correctTrials{iSub,rwd} = rwdTrialCorrectness{iSub,rwd}==0 & rwdTrialResponse{iSub,rwd}>0;
+            case 2 %all trials with valid response
+                correctTrials{iSub,rwd} = rwdTrialResponse{iSub,rwd}>0;
+        end
+        correctTrials{iSub,rwd} = correctTrials{iSub,rwd}';
+        temp = repmat(correctTrials{iSub,rwd},trialLength,1);
+        correctTRs{iSub,rwd} = temp(:);
+        
+        %this is for all data
+        stimTrials{iSub,rwd} = 1-nullTrials{goodSubs(iSub),rwd};
+        freqTrials{goodSubs(iSub),rwd} = freqTrials{goodSubs(iSub),rwd}.*stimTrials{iSub,rwd}.*correctTrials{iSub,rwd};%set null trials to 0
+        contrastTrials{goodSubs(iSub),rwd} = contrastTrials{goodSubs(iSub),rwd}.*stimTrials{iSub,rwd}.*correctTrials{iSub,rwd};%set null trials to 0
+        
+        %this is for pupil
+        temp = reshape(correctTrials{iSub,rwd}, trialsPerRun,[]);
+        correctTrialsWithJunked = [ones(1, size(temp,2)); temp];%add ones for junked trials
+        eyeStimTrials{goodSubs(iSub),rwd} = eyeStimTrials{goodSubs(iSub),rwd}.*correctTrialsWithJunked(:);
+        eyeNullTrials{goodSubs(iSub),rwd} = eyeNullTrials{goodSubs(iSub),rwd}.*correctTrialsWithJunked(:);
+        
         %remove the first trial of each run
         junkedIndices = zeros(size(eyeStimTrials{goodSubs(iSub),rwd}));
         junkedIndices(1:17:end) = ones;
@@ -116,23 +152,10 @@ for iSub=1:length(goodSubs)
         junkedNullTrials = find(mod(nullTrialIndices,17)==1);
         nullPupilRwd{goodSubs(iSub),rwd}(junkedNullTrials,:) = [];
         
-        %get measure of pupil size per trial
-        %         stdStimPupil{iSub,rwd} = nanstd(stimPupilRwd{goodSubs(iSub),rwd},0,2);%per trial
-        %         baseStimPupil{iSub,rwd} = nanmean(stimPupilRwd{goodSubs(iSub),rwd}(:,1:baselineT),2);%per trial
-        %         f=fft(fillmissing(stimPupilRwd{goodSubs(iSub),rwd},'linear',2),[],2);
-        %         phStimPupil{iSub,rwd} = angle(f(:,2));
-        %         ampStimPupil{iSub,rwd} = abs(f(:,2));
-        %
-        %         stdNullPupil{iSub,rwd} = nanstd(nullPupilRwd{goodSubs(iSub),rwd},0,2);%per trial
-        %         baseNullPupil{iSub,rwd} = nanmean(nullPupilRwd{goodSubs(iSub),rwd}(:,1:baselineT),2);%per trial
-        %         f=fft(fillmissing(nullPupilRwd{goodSubs(iSub),rwd},'linear',2),[],2);
-        %         phNullPupil{iSub,rwd} = angle(f(:,2));
-        %         ampNullPupil{iSub,rwd} = abs(f(:,2));
         
     end
     
     %concatenate across rwd, separately for each subject
-    
     stimPupilConcat{iSub} = [stimPupilRwd{goodSubs(iSub),1}(:,1:pupilTrialTime); stimPupilRwd{goodSubs(iSub),2}(:,1:pupilTrialTime)];
     nullPupilConcat{iSub} = [nullPupilRwd{goodSubs(iSub),1}(:,1:pupilTrialTime); nullPupilRwd{goodSubs(iSub),2}(:,1:pupilTrialTime)];
     
@@ -172,9 +195,13 @@ for iSub=1:length(goodSubs)
     
     
     
-    
+
     %pulse stats
-    subStimPulse{iSub} = [rwdPulseTrials{goodSubs(iSub),1}(:,stimTrials{goodSubs(iSub),1}==1) rwdPulseTrials{goodSubs(iSub),2}(:,stimTrials{goodSubs(iSub),2}==1)];%concatenate pulse of null trials
+    for rwd=1:2
+        stimTrials{iSub,rwd} = stimTrials{iSub,rwd}.*correctTrials{iSub,rwd};
+        nullTrials{goodSubs(iSub),rwd} = nullTrials{goodSubs(iSub),rwd}.*correctTrials{iSub,rwd};
+    end
+    subStimPulse{iSub} = [rwdPulseTrials{goodSubs(iSub),1}(:,stimTrials{iSub,1}==1) rwdPulseTrials{goodSubs(iSub),2}(:,stimTrials{iSub,2}==1)];%concatenate pulse of null trials
     subNullPulse{iSub} = [rwdPulseTrials{goodSubs(iSub),1}(:,nullTrials{goodSubs(iSub),1}==1) rwdPulseTrials{goodSubs(iSub),2}(:,nullTrials{goodSubs(iSub),2}==1)];%concatenate pulse of null trials
     
     %subtract mean null trial
@@ -189,7 +216,8 @@ for iSub=1:length(goodSubs)
     
     subStimRwd{iSub} = 1:length(subStdStimPulse{iSub});
 %     subStimRwdMedian(iSub) = length(freqTrials{goodSubs(iSub),1})+0.5;%median(subRwd{iSub});
-    subStimRwdMedian(iSub) = sum(nullTrialsTRs{goodSubs(iSub),1}==0)/trialLength+0.5;%after the last trial of high reward
+    subStimRwdMedian(iSub) = sum(stimTrials{iSub,1})+0.5;
+%     subStimRwdMedian(iSub) = sum(nullTrialsTRs{goodSubs(iSub),1}==0)/trialLength+0.5;%after the last trial of high reward
     
     
     %     subStimPulseStd{iSub} = std(subStimPulse{iSub});
@@ -225,7 +253,7 @@ for iSub=1:length(goodSubs)
     
     %get mean pupil for high and low contrast, and for frequencies
     
-    stimContrastTrials{iSub} = [contrastTrials{goodSubs(iSub),1}(stimTrials{goodSubs(iSub),1}==1) contrastTrials{goodSubs(iSub),2}(stimTrials{goodSubs(iSub),2}==1)];
+    stimContrastTrials{iSub} = [contrastTrials{goodSubs(iSub),1}(stimTrials{iSub,1}==1) contrastTrials{goodSubs(iSub),2}(stimTrials{iSub,2}==1)];
     for icontrast=1:ncontrasts
         contrastPupil{iSub,icontrast} = stimPupilConcat{iSub}(stimContrastTrials{iSub}==icontrast,:);
         meanContrastPupil(iSub,icontrast,:) = nanmean(contrastPupil{iSub,icontrast});
@@ -233,7 +261,7 @@ for iSub=1:length(goodSubs)
         meanContrastPulse(iSub,icontrast,:) = nanmean(contrastPulse{iSub,icontrast},2);
     end
     
-    stimFreqTrials{iSub} = [freqTrials{goodSubs(iSub),1}(stimTrials{goodSubs(iSub),1}==1) freqTrials{goodSubs(iSub),2}(stimTrials{goodSubs(iSub),2}==1)];
+    stimFreqTrials{iSub} = [freqTrials{goodSubs(iSub),1}(stimTrials{iSub,1}==1) freqTrials{goodSubs(iSub),2}(stimTrials{iSub,2}==1)];
     for ifreq=1:nfreqs
         freqPupil{iSub,ifreq} = stimPupilConcat{iSub}(stimFreqTrials{iSub}==ifreq,:);
         meanFreqPupil(iSub,ifreq,:) = nanmean(freqPupil{iSub,ifreq});
@@ -255,10 +283,10 @@ for iSub=1:length(goodSubs)
         %         roiTseries = roiTseries(goodVoxels,:);
         for rwd=1:2
             controlTseriesRwd = roiTC{goodSubs(iSub),controlROIs(iRoi),rwd}.tSeries;
-            controlNullTseriesRwd{iSub,iRoi,rwd} = controlTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==1);
-            controlStimTseriesRwd{iSub,iRoi,rwd} = controlTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==0);
+            controlNullTseriesRwd{iSub,iRoi,rwd} = controlTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==1 & correctTRs{iSub,rwd});
+            controlStimTseriesRwd{iSub,iRoi,rwd} = controlTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==0 & correctTRs{iSub,rwd});
         end
-        %concatenate across rwd
+        %concatenate across rwd, average across voxels
         controlNullTseries{iSub,iRoi} = [ nanmean(controlNullTseriesRwd{iSub,iRoi,1},1) nanmean(controlNullTseriesRwd{iSub,iRoi,2},1)];
         controlStimTseries{iSub,iRoi} = [ nanmean(controlStimTseriesRwd{iSub,iRoi,1},1) nanmean(controlStimTseriesRwd{iSub,iRoi,2},1)];
         %reshape into trials
@@ -308,8 +336,8 @@ for iSub=1:length(goodSubs)
             
             for rwd=1:2
                 binTseriesRwd = roiTC{goodSubs(iSub),iRoi,rwd}.tSeries(binVoxels,:);
-                binNullTseriesRwd{iSub,iRoi,ibin,rwd} = binTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==1);
-                binStimTseriesRwd{iSub,iRoi,ibin,rwd} = binTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==0);
+                binNullTseriesRwd{iSub,iRoi,ibin,rwd} = binTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==1 & correctTRs{iSub,rwd});
+                binStimTseriesRwd{iSub,iRoi,ibin,rwd} = binTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==0 & correctTRs{iSub,rwd});
             end
             
             %concatenate across rwd
@@ -399,7 +427,7 @@ for arousalType=arousalTypes
             else
                 arousalTrials{iSub,arousal} = trialArousal<medianArousal;
             end
-            
+            [iSub, arousal, sum(arousalTrials{iSub,arousal})];
             %                 for ifreq=1:max(freqTrials{goodSubs(iSub),1})
             %                     subBinFreqStdArousal{iSub,iRoi,ibin,ifreq,arousal} =  subBinStdStim{iSub,iRoi,ibin}(:,stimFreqTrials{iSub}==ifreq & arousalTrials{iSub,arousal},:);%vox,trial
             %                 end
@@ -422,6 +450,7 @@ for arousalType=arousalTypes
     %% DECODING
     for featureType=featureTypes
         for iSub=1:length(goodSubs)
+            if sum(arousalTrials{iSub,arousal})>0
             for iRoi=bensonROIs%1:length(roiNames) %length(bensonROIs)
                 for ibin=1:nbins
                     
@@ -531,6 +560,16 @@ for arousalType=arousalTypes
                     permAccContrastDiff(featureType,iSub,iRoi,ibin,:) = temp(:);
                 end
             end
+            else
+                for arousal=1:2
+                    classAccFreq{arousalType,featureType,arousal}(iSub,bensonROIs,1:nbins) = NaN;
+                    classAccContrast{arousalType,featureType,arousal}(iSub,bensonROIs,1:nbins) = NaN;
+                    permAccFreq{arousalType,featureType,arousal}(iSub,bensonROIs,1:nbins,1:nperms) = NaN;
+                    permAccContrast{arousalType,featureType,arousal}(iSub,bensonROIs,1:nbins,1:nperms)= NaN;
+                end
+                permAccFreqDiff(featureType,iSub,bensonROIs,1:nbins,1:nperms)= NaN;
+                permAccContrastDiff(featureType,iSub,bensonROIs,1:nbins,1:nperms)= NaN;
+            end
         end
     end
     
@@ -541,12 +580,12 @@ for arousalType=arousalTypes
                 [h pvalFreq(arousalType,featureType,iRoi,ibin)] = ttest(classAccFreq{arousalType,featureType,1}(:,iRoi,ibin), classAccFreq{arousalType,featureType,2}(:,iRoi,ibin));
                 [h pvalContrast(arousalType,featureType,iRoi,ibin)] = ttest(classAccContrast{arousalType,featureType,1}(:,iRoi,ibin), classAccContrast{arousalType,featureType,2}(:,iRoi,ibin));
                 
-                permFreqMeanDiff(featureType,iRoi,ibin,:) = mean(permAccFreqDiff(featureType,:,iRoi,ibin,:));
-                realDiffFreq(featureType,iRoi,ibin) = mean(classAccFreq{arousalType,featureType,1}(:,iRoi,ibin) - classAccFreq{arousalType,featureType,2}(:,iRoi,ibin));
+                permFreqMeanDiff(featureType,iRoi,ibin,:) = nanmean(permAccFreqDiff(featureType,:,iRoi,ibin,:));
+                realDiffFreq(featureType,iRoi,ibin) = nanmean(classAccFreq{arousalType,featureType,1}(:,iRoi,ibin) - classAccFreq{arousalType,featureType,2}(:,iRoi,ibin));
                 pvalPermFreq(arousalType,featureType,iRoi,ibin) = sum(permFreqMeanDiff(featureType,iRoi,ibin,:) >= realDiffFreq(featureType,iRoi,ibin))/length(permFreqMeanDiff(featureType,iRoi,ibin,:));
                 
-                permContrastMeanDiff(featureType,iRoi,ibin,:) = mean(permAccContrastDiff(featureType,:,iRoi,ibin,:));
-                realDiffContrast(featureType,iRoi,ibin) = mean(classAccContrast{arousalType,featureType,1}(:,iRoi,ibin) - classAccContrast{arousalType,featureType,2}(:,iRoi,ibin));
+                permContrastMeanDiff(featureType,iRoi,ibin,:) = nanmean(permAccContrastDiff(featureType,:,iRoi,ibin,:));
+                realDiffContrast(featureType,iRoi,ibin) = nanmean(classAccContrast{arousalType,featureType,1}(:,iRoi,ibin) - classAccContrast{arousalType,featureType,2}(:,iRoi,ibin));
                 pvalPermContrast(arousalType,featureType,iRoi,ibin) = sum(permContrastMeanDiff(featureType,iRoi,ibin,:) >= realDiffContrast(featureType,iRoi,ibin))/length(permContrastMeanDiff(featureType,iRoi,ibin,:));
 
             end
@@ -564,12 +603,12 @@ for arousalType=arousalTypes
     markerSize=80;
     for featureType=featureTypes
         for arousal=1:2
-            plot(squeeze(mean(classAccFreq{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
+            plot(squeeze(nanmean(classAccFreq{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
             hold on
         end
         for ibin=1:nbins
             for arousal=1:2
-                maxAcc(arousal) = max(squeeze(mean(classAccFreq{arousalType,featureType,arousal}(:,iRoi,ibin))));
+                maxAcc(arousal) = max(squeeze(nanmean(classAccFreq{arousalType,featureType,arousal}(:,iRoi,ibin))));
                 %             maxAcc = max(squeeze(mean(accFreq{featureType,1}(:,iRoi,ibin))),squeeze(mean(accFreq{featureType,2}(:,iRoi,ibin))));
             end
             if pvalFreq(arousalType,featureType,iRoi,ibin)<pvalThresh
@@ -592,7 +631,7 @@ for arousalType=arousalTypes
     legend('high','low');
     for featureType=featureTypes
         for arousal=1:2
-            plot(squeeze(mean(classAccContrast{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
+            plot(squeeze(nanmean(classAccContrast{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
         end
         for ibin=1:nbins
             for arousal=1:2
@@ -648,16 +687,16 @@ for arousalType=arousalTypes
     new = '_';
     % savefig([dataFolder replace(titleStr,old, new)]);
     for arousal=1:2
-        [max(squeeze(mean(classAccContrast{arousalType,featureType,arousal},1))), max(squeeze(mean(classAccFreq{arousalType,featureType,arousal},1)))]
+        [max(squeeze(nanmean(classAccContrast{arousalType,featureType,arousal},1))), max(squeeze(nanmean(classAccFreq{arousalType,featureType,arousal},1)))]
     end
     
     
     
     subplot(rows,cols,3)
     for arousal=1:2
-        bar((arousal-1)*nfreqs+[1:5],squeeze(mean(freqCondsTrue(arousalType,featureType,:,arousal,:))),'facecolor',plotColors{arousal},'linestyle',lineStyles{arousal});
+        bar((arousal-1)*nfreqs+[1:5],squeeze(nanmean(freqCondsTrue(arousalType,featureType,:,arousal,:))),'facecolor',plotColors{arousal},'linestyle',lineStyles{arousal});
         hold on
-        er=errorbar((arousal-1)*nfreqs+[1:nfreqs],squeeze(mean(freqCondsTrue(arousalType,featureType,:,arousal,:))),squeeze(std(freqCondsTrue(arousalType,featureType,:,arousal,:))));
+        er=errorbar((arousal-1)*nfreqs+[1:nfreqs],squeeze(nanmean(freqCondsTrue(arousalType,featureType,:,arousal,:))),squeeze(nanstd(freqCondsTrue(arousalType,featureType,:,arousal,:))));
                 er.Color = [0 0 0];
         er.LineStyle = 'none';
 %         histogram(squeeze(mean(freqCondsTrue(:,arousal,:))),nfreqs+1,'facecolor',plotColors{arousal},'linestyle',lineStyles{arousal});
@@ -665,9 +704,9 @@ for arousalType=arousalTypes
     end
     subplot(rows,cols,4)
     for arousal=1:2
-        bar((arousal-1)*ncontrasts+[1:ncontrasts],squeeze(mean(contrastCondsTrue(arousalType,featureType,:,arousal,:))),'facecolor',plotColors{arousal},'linestyle',lineStyles{arousal});
+        bar((arousal-1)*ncontrasts+[1:ncontrasts],squeeze(nanmean(contrastCondsTrue(arousalType,featureType,:,arousal,:))),'facecolor',plotColors{arousal},'linestyle',lineStyles{arousal});
         hold on
-        er=errorbar((arousal-1)*ncontrasts+[1:ncontrasts],squeeze(mean(contrastCondsTrue(arousalType,featureType,:,arousal,:))),squeeze(std(contrastCondsTrue(arousalType,featureType,:,arousal,:))));
+        er=errorbar((arousal-1)*ncontrasts+[1:ncontrasts],squeeze(nanmean(contrastCondsTrue(arousalType,featureType,:,arousal,:))),squeeze(nanstd(contrastCondsTrue(arousalType,featureType,:,arousal,:))));
         er.Color = [0 0 0];
         er.LineStyle = 'none';
 %         histogram(squeeze(mean(contrastCondsTrue(:,arousal,:))),ncontrasts+1,'facecolor',plotColors{arousal},'linestyle',lineStyles{arousal});
@@ -682,15 +721,26 @@ figure
 rows=1;
 cols=4;
 subplot(rows,cols,1)
-plot(squeeze(mean(meanContrastPupil))')
+plot(squeeze(nanmean(meanContrastPupil))')
 subplot(rows,cols,2)
-plot(squeeze(mean(meanContrastPulse))')
+plot(squeeze(nanmean(meanContrastPulse))')
 subplot(rows,cols,3)
-plot(squeeze(mean(meanFreqPupil))')
+plot(squeeze(nanmean(meanFreqPupil))')
 subplot(rows,cols,4)
-plot(squeeze(mean(meanFreqPulse))')
+plot(squeeze(nanmean(meanFreqPulse))')
 
 %%
+onlyCorrectStr='';
+switch onlyCorrect
+%     case 0
+%         onlyCorrectStr='_correct';
+    case 1
+        onlyCorrectStr='_correct';
+    case -1
+        onlyCorrectStr='_incorrect';
+    case 2
+        onlyCorrectStr='_valid';
+end
 zscoreStr='';
 if toZscore
     zscoreStr = '_zscore';
@@ -716,8 +766,9 @@ if subtractMean
     subtractMeanStr = '_subtractMean';
 end
 %%
-save([dataFolder 'decodeArousalPerm' zscoreStr controlStr pulseStr pupilStr pupilBaseStr subtractMeanStr '.mat'],...
-    'featureTypes','ncontrasts','nfreqs','contrastCondsTrue','freqCondsTrue',...
+save([dataFolder 'decodeArousalPerm' onlyCorrectStr zscoreStr controlStr pulseStr pupilStr pupilBaseStr subtractMeanStr '.mat'],...
+    'goodSubs', 'subFolders',...
+    'onlyCorrect', 'featureTypes','ncontrasts','nfreqs','contrastCondsTrue','freqCondsTrue',...
     'nperms', 'arousalTypes','includeControl','includePulse','subtractMean',...
     'includePupil','includePupilBase','featureTypes','toZscore','concatProj','bensonROIs','eccMin','eccMax','nbins',...
     'binBorders','nbins',...
