@@ -1,7 +1,8 @@
 close all
 
 clear all
-
+pvalThresh=0.01;
+onlyCorrect=2;%0=all trials, 1=only correct, -1=only incorrect, 2=valid response
 includeControl=0;%left and right DMN trial amplitude
 includePulse = 0;
 subtractMean = 0;
@@ -16,6 +17,17 @@ tic
 
 dataFolder = 'c:\rwdFmri\';
 %%
+onlyCorrectStr='';
+switch onlyCorrect
+%     case 0
+%         onlyCorrectStr='_correct';
+    case 1
+        onlyCorrectStr='_correct';
+    case -1
+        onlyCorrectStr='_incorrect';
+    case 2
+        onlyCorrectStr='_valid';
+end
 zscoreStr='';
 if toZscore
     zscoreStr = '_zscore';
@@ -67,16 +79,16 @@ for arousalType=arousalTypes
     rows=1;
     cols=4;
     subplot(rows,cols,1:2)
-    pvalThresh=0.05;
+
     markerSize=80;
     for featureType=featureTypes
         for arousal=1:2
-            plot(squeeze(mean(classAccFreq{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
+            plot(squeeze(nanmean(classAccFreq{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
             hold on
         end
         for ibin=1:nbins
             for arousal=1:2
-                maxAcc(arousal) = max(squeeze(mean(classAccFreq{arousalType,featureType,arousal}(:,iRoi,ibin))));
+                maxAcc(arousal) = max(squeeze(nanmean(classAccFreq{arousalType,featureType,arousal}(:,iRoi,ibin))));
                 %             maxAcc = max(squeeze(mean(accFreq{featureType,1}(:,iRoi,ibin))),squeeze(mean(accFreq{featureType,2}(:,iRoi,ibin))));
             end
             if pvalFreq(arousalType,featureType,iRoi,ibin)<pvalThresh
@@ -99,7 +111,7 @@ for arousalType=arousalTypes
     legend('high','low');
     for featureType=featureTypes
         for arousal=1:2
-            plot(squeeze(mean(classAccContrast{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
+            plot(squeeze(nanmean(classAccContrast{arousalType,featureType,arousal})),lineStyles{arousal},'color',plotColors{featureType})
         end
         for ibin=1:nbins
             for arousal=1:2
