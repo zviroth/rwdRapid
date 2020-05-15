@@ -2,13 +2,13 @@ close all
 mrQuit
 clear all
 saveFigs=1;
-arousalType = 2; %1=pupil std, 2=pupil baseline, 3=pulse std, 4=pulse mean
+arousalType = 5; %1=pupil std, 2=pupil baseline, 3=pulse std, 4=pulse mean, 5=ppg std, 6=ppg mean
 tic
 toZscore=0;%0 or 1
 concatProj= 0;
 % dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
-% dataFolder = '/Users/rothzn/rwdFmri/';
-dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
+dataFolder = '/Users/rothzn/rwdFmri/';
+% dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
 %Load eyetracking data
 saveFolder = '~/rwdFmri/';
 load([saveFolder 'rwdRapidEyeData.mat'], 'subFolders', 'samplerate',  ...
@@ -30,13 +30,13 @@ ConcatProjStr = '';
 if concatProj
     ConcatProjStr = 'concatProj';
 end
-load([saveFolder 'rwdRapid_physio.mat'], 'concatInfo',  ...
+load([dataFolder 'rwdRapid_physio.mat'], 'concatInfo',  ...
     'subFolders','trialLength',...
     'ecgselect','ecgSampleRate','ecgTrial','ecgRunLength','ecgInterpMethod',...
-    'ecg','ecgPulseRate','interpPulseRate',...
+    'ecg','ecgPulseRate','interpPulseRate','ecgPpgAmp',...
     'respselect','resp',...
-    'rwdPulseTrials','rwdRvTrials','meanPulse','meanRV',...
-    'designMatPulse','designMatResp','designMatRespPulse');
+    'rwdPulseTrials','rwdPpgTrials','rwdRvTrials','meanPulse','meanPpg','meanRV',...
+    'designMatPulse','designMatResp','designMatRespPulse','designMatPpg','designMatRespPulsePpg');
 
 
 %Load fMRI data
@@ -58,6 +58,7 @@ load([saveFolder 'roiTC_' zScoreString concatProjStr '.mat'], 'subFolders', 'roi
     'nullTseries','nullTrialTseries','stimTseries','stimTrialTseries');
 
 goodSubs = [1:12 14];
+goodSubs = [1:14];
 bensonROIs = 1:3;
 %%
 nullPupil = origNullPupil;
@@ -112,7 +113,12 @@ for iSub=1:length(goodSubs)
     subPulsePh{iSub} = angle(f(2,:));
     subPulseAmp{iSub} = abs(f(2,:));
     
-    
+    subPpg{iSub} = [rwdPpgTrials{goodSubs(iSub),1}(:,nullTrials{goodSubs(iSub),1}==1) rwdPpgTrials{goodSubs(iSub),2}(:,nullTrials{goodSubs(iSub),2}==1)];%concatenate ppg-amp of null trials
+    subPpgStd{iSub} = std(subPpg{iSub});
+    subPpgMean{iSub} = mean(subPpg{iSub});
+    f=fft(subPpg{iSub});
+    subPpgPh{iSub} = angle(f(2,:));
+    subPpgAmp{iSub} = abs(f(2,:));
     
     %divide trials according to pupil response
     switch arousalType
@@ -132,6 +138,14 @@ for iSub=1:length(goodSubs)
             subMedianMeanPulse(iSub) = median(subPulseMean{iSub},'omitnan');
             pupilArousal{iSub,1} = subPulseMean{iSub}>subMedianMeanPulse(iSub);
             pupilArousal{iSub,2} = subPulseMean{iSub}<subMedianMeanPulse(iSub);
+        case 5
+            subMedianStdPpg(iSub) = median(subPpgStd{iSub},'omitnan');
+            pupilArousal{iSub,1} = subPpgStd{iSub}>subMedianStdPpg(iSub);
+            pupilArousal{iSub,2} = subPpgStd{iSub}<subMedianStdPpg(iSub);
+        case 6
+            subMedianMeanPpg(iSub) = median(subPpgMean{iSub},'omitnan');
+            pupilArousal{iSub,1} = subPpgMean{iSub}>subMedianMeanPpg(iSub);
+            pupilArousal{iSub,2} = subPpgMean{iSub}<subMedianMeanPpg(iSub);
     end
     
     
@@ -139,6 +153,12 @@ for iSub=1:length(goodSubs)
         subArousalPulse(iSub,arousal,:) = mean(subPulse{iSub}(:,pupilArousal{iSub,arousal}),2);
         subArousalPulseStd(iSub,arousal) = nanstd(squeeze(subArousalPulse(iSub,arousal,:)));
         subArousalPulseMean(iSub,arousal) = nanmean(squeeze(subArousalPulse(iSub,arousal,:)));
+    end
+    
+    for arousal=1:2
+        subArousalPpg(iSub,arousal,:) = mean(subPpg{iSub}(:,pupilArousal{iSub,arousal}),2);
+        subArousalPpgStd(iSub,arousal) = nanstd(squeeze(subArousalPpg(iSub,arousal,:)));
+        subArousalPpgMean(iSub,arousal) = nanmean(squeeze(subArousalPpg(iSub,arousal,:)));
     end
     
     subResp{iSub} = [rwdRvTrials{goodSubs(iSub),1}(:,nullTrials{goodSubs(iSub),1}==1) rwdRvTrials{goodSubs(iSub),2}(:,nullTrials{goodSubs(iSub),2}==1)];%concatenate pulse of null trials
@@ -166,8 +186,10 @@ for iSub=1:length(goodSubs)
     
     %concatenate physio design matrcies
     pulseDesignMat{iSub} = [designMatPulse{iSub,1} designMatPulse{iSub,2}];
+    ppgDesignMat{iSub} = [designMatPpg{iSub,1} designMatPpg{iSub,2}];
     respDesignMat{iSub} = [designMatResp{iSub,1} designMatResp{iSub,2}];
     respPulseDesignMat{iSub} = [designMatRespPulse{iSub,1} designMatRespPulse{iSub,2}] ;
+    respPulsePpgDesignMat{iSub} = [designMatRespPulsePpg{iSub,1} designMatRespPulsePpg{iSub,2}] ;
     
     for iRoi=1:length(roiNames)
         
@@ -193,8 +215,10 @@ for iSub=1:length(goodSubs)
         subTseries{iSub,iRoi} = nanmean([roiTC{iSub,iRoi,1}.tSeries roiTC{iSub,iRoi,2}.tSeries]);%mean over voxels
 
         pulseKernelRoi(iSub,iRoi,:) = pulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
+        ppgKernelRoi(iSub,iRoi,:) = ppgDesignMat{iSub}'\subTseries{iSub,iRoi}';
         respKernelRoi(iSub,iRoi,:) = respDesignMat{iSub}'\subTseries{iSub,iRoi}';
         respPulseKernelRoi(iSub,iRoi,:) = respPulseDesignMat{iSub}'\subTseries{iSub,iRoi}';
+        respPulsePpgKernelRoi(iSub,iRoi,:) = respPulsePpgDesignMat{iSub}'\subTseries{iSub,iRoi}';
         
         %divide into 2 arousal bins
         for arousal=1:2
@@ -205,7 +229,9 @@ for iSub=1:length(goodSubs)
     end
     
     iRoi=1;
-    pulsePupilBenson{iSub} = [subRespStd{iSub}', subRespMean{iSub}',subPulseStd{iSub}', subPulseMean{iSub}', ...
+    pulsePupilBenson{iSub} = [subRespStd{iSub}', subRespMean{iSub}',...
+        subPulseStd{iSub}', subPulseMean{iSub}', ...
+        subPpgStd{iSub}', subPpgMean{iSub}', ...
         subStdNullPupil{iSub}, subAmpNullPupil{iSub}, subBaseNullPupil{iSub}, subPhNullPupil{iSub}, ...
         subRoiAmpNull{iSub,iRoi}, subRoiStdNull{iSub,iRoi}, subRoiPhNull{iSub,iRoi}];
     [corrPulsePupilBenson(iSub,:,:) pvalPulsePupilBenson(iSub,:,:)] = corr(pulsePupilBenson{iSub},'rows','complete');
@@ -290,6 +316,7 @@ for iSub=1:length(goodSubs)
     for ihemi=1:2
         hemiBins{iSub,ihemi} = [subRespStd{iSub}',subRespAmp{iSub}', subRespMean{iSub}', subRespPh{iSub}'...
             subPulseStd{iSub}',subPulseAmp{iSub}', subPulseMean{iSub}', subPulsePh{iSub}'...
+            subPpgStd{iSub}', subPpgAmp{iSub}', subPpgMean{iSub}', subPpgPh{iSub}'...
             subStdNullPupil{iSub}, subAmpNullPupil{iSub}, subBaseNullPupil{iSub}, subPhNullPupil{iSub}];%, ...
         for ibin=1:nbins
             hemiBins{iSub,ihemi} =  [hemiBins{iSub,ihemi}, subBinStdNull{iSub,1+ihemi,ibin}];
@@ -317,35 +344,36 @@ for iSub=1:length(goodSubs)
 end
 labels = {'resp std','resp amp', 'resp mean','resp phase',...
     'pulse std','pulse amp', 'pulse mean', 'pulse phase',...
+    'ppg std','ppg amp', 'ppg mean', 'ppg phase',...
     'pupil std', 'pupil amp', 'pupil baseline', 'pupil phase',...
     'benson amp', 'benson std', 'benson phase','DMN amp','DMN std','DMN phase','cerebellum amp','cerebellum std','cerebellum phase'};
 
 toc
-%%
-for iSub=1:length(goodSubs)
-    for ihemi=1:2
-        for ibin=1:nbins
-            subBinAmpNull{iSub,1+ihemi,ibin};
-            subBinPhNull{iSub,1+ihemi,ibin};
-            complexTraj{iSub}(ihemi,ibin,:) = subBinAmpNull{iSub,1+ihemi,ibin}.*exp(subBinPhNull{iSub,1+ihemi,ibin}*1i);
-        end
-        %DMN & cerebellum
-        for iRoi=1:2
-            curRoi = bensonROIs(end)+2*(iRoi-1)+ihemi;
-            complexTraj{iSub}(ihemi,nbins+iRoi,:) = subRoiAmpNull{iSub,curRoi}.*exp(subRoiPhNull{iSub,curRoi}*1i);
-        end
-        %get cartesion coordinates
-        for iRoi=1:size(complexTraj{iSub},2)
-            traj{iSub}(ihemi,iRoi,:,:) = [real(squeeze(complexTraj{iSub}(ihemi,iRoi,:))) imag(squeeze(complexTraj{iSub}(ihemi,iRoi,:)))];
-        end
-    end
-
-    for iRoi1=1:size(complexTraj{iSub},2)
-        for iRoi2=1:size(complexTraj{iSub},2)
-            [procDist(iSub,iRoi1,iRoi2) procTrans{iSub}(iRoi1,iRoi2,:,:) procTransform{iSub,iRoi1,iRoi2}] = procrustes(squeeze(traj{iSub}(1,iRoi1,:,:)),squeeze(traj{iSub}(2,iRoi2,:,:)));%transforms the 2nd to fit the 1st
-        end
-    end
-end
+% %%
+% for iSub=1:length(goodSubs)
+%     for ihemi=1:2
+%         for ibin=1:nbins
+%             subBinAmpNull{iSub,1+ihemi,ibin};
+%             subBinPhNull{iSub,1+ihemi,ibin};
+%             complexTraj{iSub}(ihemi,ibin,:) = subBinAmpNull{iSub,1+ihemi,ibin}.*exp(subBinPhNull{iSub,1+ihemi,ibin}*1i);
+%         end
+%         %DMN & cerebellum
+%         for iRoi=1:2
+%             curRoi = bensonROIs(end)+2*(iRoi-1)+ihemi;
+%             complexTraj{iSub}(ihemi,nbins+iRoi,:) = subRoiAmpNull{iSub,curRoi}.*exp(subRoiPhNull{iSub,curRoi}*1i);
+%         end
+%         %get cartesion coordinates
+%         for iRoi=1:size(complexTraj{iSub},2)
+%             traj{iSub}(ihemi,iRoi,:,:) = [real(squeeze(complexTraj{iSub}(ihemi,iRoi,:))) imag(squeeze(complexTraj{iSub}(ihemi,iRoi,:)))];
+%         end
+%     end
+% 
+%     for iRoi1=1:size(complexTraj{iSub},2)
+%         for iRoi2=1:size(complexTraj{iSub},2)
+%             [procDist(iSub,iRoi1,iRoi2) procTrans{iSub}(iRoi1,iRoi2,:,:) procTransform{iSub,iRoi1,iRoi2}] = procrustes(squeeze(traj{iSub}(1,iRoi1,:,:)),squeeze(traj{iSub}(2,iRoi2,:,:)));%transforms the 2nd to fit the 1st
+%         end
+%     end
+% end
 %%
 ifig=0;
 plotColors = {[1 0 0], [0 0 1], [0 1 0], [1 1 0]};
@@ -477,13 +505,17 @@ if saveFigs
             arousalTypeStr='stdPulse';
         case 4
             arousalTypeStr='meanPulse';
+        case 5
+            arousalTypeStr='stdPpg';
+        case 6
+            arousalTypeStr='meanPpg';
     end
     print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/arousalBinsNull_' arousalTypeStr '.pdf']);
 end
 %%
 ifig=ifig+1; figure(ifig); clf
 % imagesc(squeeze(mean(corrPulsePupilBenson)));
-imagesc(squeeze(mean(corrHemiBins)));
+imagesc(squeeze(nanmean(corrHemiBins)));
 
 title('trial-by-trial correlation');
 yticklabels(labels);
@@ -503,24 +535,45 @@ pulseKernelRoi = zscore(pulseKernelRoi,0,3);
 
 ifig=ifig+1; figure(ifig); clf
 rows=1;
-cols=4;
+cols=6;
 subplot(rows,cols,1)
 plot(squeeze(respKernelRoi(:,1,:))')
 hold on
 plot(squeeze(mean(respKernelRoi(:,1,:))),'k','linewidth',2)
+title('respiration');
 subplot(rows,cols,2)
 plot(squeeze(pulseKernelRoi(:,1,:))')
 hold on
 plot(squeeze(mean(pulseKernelRoi(:,1,:))),'k','linewidth',2)
-subplot(rows,cols,3)
-plot(squeeze(respPulseKernelRoi(:,1,1:10))')
-hold on
-plot(squeeze(mean(respPulseKernelRoi(:,1,1:10))),'k','linewidth',2)
-subplot(rows,cols,4)
-plot(squeeze(respPulseKernelRoi(:,1,11:20))')
-hold on
-plot(squeeze(mean(respPulseKernelRoi(:,1,11:20))),'k','linewidth',2)
+title('pulse')
 
+subplot(rows,cols,3)
+plot(squeeze(ppgKernelRoi(:,1,:))')
+hold on
+plot(squeeze(mean(ppgKernelRoi(:,1,:))),'k','linewidth',2)
+title('ppg')
+
+% subplot(rows,cols,4)
+% plot(squeeze(respPulseKernelRoi(:,1,1:10))')
+% hold on
+% plot(squeeze(mean(respPulseKernelRoi(:,1,1:10))),'k','linewidth',2)
+% subplot(rows,cols,5)
+% plot(squeeze(respPulseKernelRoi(:,1,11:20))')
+% hold on
+% plot(squeeze(mean(respPulseKernelRoi(:,1,11:20))),'k','linewidth',2)
+
+subplot(rows,cols,4)
+plot(squeeze(respPulsePpgKernelRoi(:,1,1:10))')
+hold on
+plot(squeeze(mean(respPulsePpgKernelRoi(:,1,1:10))),'k','linewidth',2)
+subplot(rows,cols,5)
+plot(squeeze(respPulsePpgKernelRoi(:,1,11:20))')
+hold on
+plot(squeeze(mean(respPulsePpgKernelRoi(:,1,11:20))),'k','linewidth',2)
+subplot(rows,cols,6)
+plot(squeeze(respPulsePpgKernelRoi(:,1,21:30))')
+hold on
+plot(squeeze(mean(respPulsePpgKernelRoi(:,1,21:30))),'k','linewidth',2)
 %%
 ifig=ifig+1; figure(ifig); clf
 rows=2;
@@ -540,7 +593,7 @@ for rwd=1:2
     plot(nanmean(allRwdNullPupil{rwd}),'color',plotColors{rwd},'linewidth',2);
 end
 legend('high','low');
-title('high/low reward');
+title('pupil high/low reward');
 subplot(rows,cols,2)
 plot(nanmean(allRwdNullPupil{1})-nanmean(allRwdNullPupil{2}),'k','linewidth',2);
 hold on
@@ -558,7 +611,7 @@ for arousal=1:2
     plot(nanmean(allArousalNullPupil{arousal}),'color',plotColors{arousal},'linewidth',2);
     hold on
 end
-title('high/low arousal');
+title('pupil high/low arousal');
 subplot(rows,cols,4)
 plot(nanmean(allArousalNullPupil{1})-nanmean(allArousalNullPupil{2}),'k','linewidth',2);
 hold on
@@ -566,96 +619,176 @@ hline(0)
 if saveFigs
     print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/pupilRwdArousal_' arousalTypeStr '.pdf']);
 end
-
+%%
 %%
 ifig=ifig+1; figure(ifig); clf
-imagesc(squeeze(mean(procDist)));
+rows=2;
+cols=2;
+%get mean pupil response for high and low reward
+subplot(rows,cols,1)
+for rwd=1:2
+    allRwdNullPulse{rwd} = [];
+    for iSub=1:length(goodSubs)        
+        allRwdNullPulse{rwd} = [allRwdNullPulse{rwd}; rwdPulseTrials{goodSubs(iSub),rwd}(:,nullTrials{goodSubs(iSub),1}==1)'];
+    end
+    plot(nanmean(allRwdNullPulse{rwd}),'color',plotColors{rwd},'linewidth',2);
+    hold on
+end
+legend('high','low');
+title('pulse high/low reward');
+subplot(rows,cols,2)
+plot(nanmean(allRwdNullPulse{1})-nanmean(allRwdNullPulse{2}),'k','linewidth',2);
 hold on
-xticklabels('')
-yticklabels({'benson','DMN','cerebellum'})
-yticks([1 nbins+1 nbins+2]);
-colorbar
-if saveFigs
-    print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/procrustesDistMatrix_2D.pdf']);
+hline(0)
+
+%arousal
+subplot(rows,cols,3)
+for arousal=1:2
+    allArousalNullPulse{arousal} = [];
+    for iSub=1:length(goodSubs)
+       allArousalNullPulse{arousal} = [allArousalNullPulse{arousal}; subPulse{iSub}(:,pupilArousal{iSub,arousal}>0)'];
+    end
+    plot(nanmean(allArousalNullPulse{arousal}),'color',plotColors{arousal},'linewidth',2);
+    hold on
 end
+title('pulse high/low arousal');
+subplot(rows,cols,4)
+plot(nanmean(allArousalNullPulse{1})-nanmean(allArousalNullPulse{2}),'k','linewidth',2);
+hold on
+hline(0)
+if saveFigs
+    print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/pulseRwdArousal_' arousalTypeStr '.pdf']);
+end
+
 %%
 ifig=ifig+1; figure(ifig); clf
-rows = length(goodSubs);
-cols = size(traj{1},2)+1;
-% iSub=1; 
-iRoi1=6; 
-
-
-markerSize = 20;
-iRoi1=6;
-for iSub=1:length(goodSubs)
-   subplot(rows,cols,(iSub-1)*cols+1);
-   targetTraj = squeeze(traj{iSub}(1,iRoi1,:,:));%target trajectory
-   colors = cool(size(targetTraj,1));
-   scatter(targetTraj(:,1),targetTraj(:,2),markerSize,colors,'filled');
-   for  iRoi2=1:size(traj{iSub},2)
-       subplot(rows,cols,(iSub-1)*cols+iRoi2+1);
-       scatter(targetTraj(:,1),targetTraj(:,2),markerSize,colors);
-       hold on
-       fitTraj = squeeze(procTrans{iSub}(iRoi1,iRoi2,:,:));
-       % plot(temp(:,1),temp(:,2),'r.-');
-       scatter(fitTraj(:,1),fitTraj(:,2),markerSize,colors,'filled');
-
-   end
-end
-for isubplot=1:cols*rows
-    subplot(rows,cols,isubplot)
-           xticks([]);
-       yticks([]);
-end
-%%
-ifig=ifig+1; figure(ifig); clf
-iRoi1=6;
-iRoi2 = [6 9];
-rows=length(iRoi2);
-cols=4;
-markerSize=30;
-iSub=1;
-
-
-for ind2=1:length(iRoi2)
-    subplot(rows,cols,1 + (ind2-1)*cols)
-    targetTraj = squeeze(traj{iSub}(1,iRoi1,:,:));%target trajectory
-    colors = cool(size(targetTraj,1));
-    scatter(targetTraj(:,1),targetTraj(:,2),markerSize,colors,'filled');
-    title('target');
-    subplot(rows,cols,2 + (ind2-1)*cols)
-    origTraj = squeeze(traj{iSub}(2,iRoi2(ind2),:,:));%target trajectory
-    scatter(origTraj(:,1),origTraj(:,2),markerSize,colors,'filled');
-    title('original');
-    subplot(rows,cols,3 + (ind2-1)*cols)
-    scatter(targetTraj(:,1),targetTraj(:,2),markerSize/2,colors);
+rows=2;
+cols=2;
+%get mean ppg response for high and low reward
+subplot(rows,cols,1)
+for rwd=1:2
+    allRwdNullPpg{rwd} = [];
+    for iSub=1:length(goodSubs)        
+        allRwdNullPpg{rwd} = [allRwdNullPpg{rwd}; rwdPpgTrials{goodSubs(iSub),rwd}(:,nullTrials{goodSubs(iSub),1}==1)'];
+    end
+    plot(nanmean(allRwdNullPpg{rwd}),'color',plotColors{rwd},'linewidth',2);
     hold on
-    fitTraj = squeeze(procTrans{iSub}(iRoi1,iRoi2(ind2),:,:));
-    % plot(temp(:,1),temp(:,2),'r.-');
-    scatter(fitTraj(:,1),fitTraj(:,2),markerSize,colors,'filled');
-    title('transformed');
-    %
-    % procTransform{iSub,iRoi1,iRoi2};
-    c = procTransform{iSub,iRoi1,iRoi2(ind2)}.c;
-    T = procTransform{iSub,iRoi1,iRoi2(ind2)}.T;
-    b = procTransform{iSub,iRoi1,iRoi2(ind2)}.b;
-    % Z = b*Y*T + c;
-    invb = 1/b; %=inv(b);
-    invT = inv(T);
-    estTraj = invb*(targetTraj - c)*invT;
-    subplot(rows,cols,4 + (ind2-1)*cols)
-    scatter(origTraj(:,1),origTraj(:,2),markerSize/2,colors);
+end
+legend('high','low');
+title('ppg high/low reward');
+subplot(rows,cols,2)
+plot(nanmean(allRwdNullPpg{1})-nanmean(allRwdNullPpg{2}),'k','linewidth',2);
+hold on
+hline(0)
+
+%arousal
+subplot(rows,cols,3)
+for arousal=1:2
+    allArousalNullPpg{arousal} = [];
+    for iSub=1:length(goodSubs)
+       allArousalNullPpg{arousal} = [allArousalNullPpg{arousal}; subPpg{iSub}(:,pupilArousal{iSub,arousal}>0)'];
+    end
+    plot(nanmean(allArousalNullPpg{arousal}),'color',plotColors{arousal},'linewidth',2);
     hold on
-    scatter(estTraj(:,1),estTraj(:,2),markerSize,colors,'filled');
-    title('estimated');
 end
-for isubplot=1:cols*rows
-    subplot(rows,cols,isubplot)
-    %            xticks([]);
-    %        yticks([]);
-    axis square
-end
+title('ppg high/low arousal');
+subplot(rows,cols,4)
+plot(nanmean(allArousalNullPpg{1})-nanmean(allArousalNullPpg{2}),'k','linewidth',2);
+hold on
+hline(0)
 if saveFigs
-    print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/procrustesExamples.pdf']);
+    print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/ppgRwdArousal_' arousalTypeStr '.pdf']);
 end
+
+% %%
+% ifig=ifig+1; figure(ifig); clf
+% imagesc(squeeze(mean(procDist)));
+% hold on
+% xticklabels('')
+% yticklabels({'benson','DMN','cerebellum'})
+% yticks([1 nbins+1 nbins+2]);
+% colorbar
+% if saveFigs
+%     print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/procrustesDistMatrix_2D.pdf']);
+% end
+% %%
+% ifig=ifig+1; figure(ifig); clf
+% rows = length(goodSubs);
+% cols = size(traj{1},2)+1;
+% % iSub=1; 
+% iRoi1=6; 
+% 
+% 
+% markerSize = 20;
+% iRoi1=6;
+% for iSub=1:length(goodSubs)
+%    subplot(rows,cols,(iSub-1)*cols+1);
+%    targetTraj = squeeze(traj{iSub}(1,iRoi1,:,:));%target trajectory
+%    colors = cool(size(targetTraj,1));
+%    scatter(targetTraj(:,1),targetTraj(:,2),markerSize,colors,'filled');
+%    for  iRoi2=1:size(traj{iSub},2)
+%        subplot(rows,cols,(iSub-1)*cols+iRoi2+1);
+%        scatter(targetTraj(:,1),targetTraj(:,2),markerSize,colors);
+%        hold on
+%        fitTraj = squeeze(procTrans{iSub}(iRoi1,iRoi2,:,:));
+%        % plot(temp(:,1),temp(:,2),'r.-');
+%        scatter(fitTraj(:,1),fitTraj(:,2),markerSize,colors,'filled');
+% 
+%    end
+% end
+% for isubplot=1:cols*rows
+%     subplot(rows,cols,isubplot)
+%            xticks([]);
+%        yticks([]);
+% end
+% %%
+% ifig=ifig+1; figure(ifig); clf
+% iRoi1=6;
+% iRoi2 = [6 9];
+% rows=length(iRoi2);
+% cols=4;
+% markerSize=30;
+% iSub=1;
+% 
+% 
+% for ind2=1:length(iRoi2)
+%     subplot(rows,cols,1 + (ind2-1)*cols)
+%     targetTraj = squeeze(traj{iSub}(1,iRoi1,:,:));%target trajectory
+%     colors = cool(size(targetTraj,1));
+%     scatter(targetTraj(:,1),targetTraj(:,2),markerSize,colors,'filled');
+%     title('target');
+%     subplot(rows,cols,2 + (ind2-1)*cols)
+%     origTraj = squeeze(traj{iSub}(2,iRoi2(ind2),:,:));%target trajectory
+%     scatter(origTraj(:,1),origTraj(:,2),markerSize,colors,'filled');
+%     title('original');
+%     subplot(rows,cols,3 + (ind2-1)*cols)
+%     scatter(targetTraj(:,1),targetTraj(:,2),markerSize/2,colors);
+%     hold on
+%     fitTraj = squeeze(procTrans{iSub}(iRoi1,iRoi2(ind2),:,:));
+%     % plot(temp(:,1),temp(:,2),'r.-');
+%     scatter(fitTraj(:,1),fitTraj(:,2),markerSize,colors,'filled');
+%     title('transformed');
+%     %
+%     % procTransform{iSub,iRoi1,iRoi2};
+%     c = procTransform{iSub,iRoi1,iRoi2(ind2)}.c;
+%     T = procTransform{iSub,iRoi1,iRoi2(ind2)}.T;
+%     b = procTransform{iSub,iRoi1,iRoi2(ind2)}.b;
+%     % Z = b*Y*T + c;
+%     invb = 1/b; %=inv(b);
+%     invT = inv(T);
+%     estTraj = invb*(targetTraj - c)*invT;
+%     subplot(rows,cols,4 + (ind2-1)*cols)
+%     scatter(origTraj(:,1),origTraj(:,2),markerSize/2,colors);
+%     hold on
+%     scatter(estTraj(:,1),estTraj(:,2),markerSize,colors,'filled');
+%     title('estimated');
+% end
+% for isubplot=1:cols*rows
+%     subplot(rows,cols,isubplot)
+%     %            xticks([]);
+%     %        yticks([]);
+%     axis square
+% end
+% if saveFigs
+%     print('-painters','-dpdf',['~/Documents/MATLAB/rwdRapid/figures/procrustesExamples.pdf']);
+% end
