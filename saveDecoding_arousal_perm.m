@@ -9,7 +9,7 @@ for onlyCorrect=[0 1 2]
     arousalTypes = 1:5;%1-pupil baseline, 2-pupil std, 3-pulse std, 4-rwd, 5-DMN betas
     includeControl=0;%left and right DMN trial amplitude
     includePulse = 0;
-    subtractMean = 0;
+    subtractMean = 1;
     includePupil = 0;
     includePupilBase = 0;
     featureTypes = 3;
@@ -34,8 +34,8 @@ for onlyCorrect=[0 1 2]
     tic
     
     % dataFolder = '/Volumes/MH02086153MACDT-Drobo/rwdFmri/';
-    dataFolder = '/Users/rothzn/rwdFmri/';
-    % dataFolder = 'c:\rwdFmri\';
+%     dataFolder = '/Users/rothzn/rwdFmri/';
+    dataFolder = 'c:\rwdFmri\';
     freqs = logspace(-0.3,0.5,5);
     contrasts = logspace(-0.7,0,2);
     %Load eyetracking data
@@ -302,12 +302,16 @@ for onlyCorrect=[0 1 2]
     controlROIs = 4;%left and right DMN
     for iSub=1:length(goodSubs)
         for iRoi=1:length(controlROIs)
-            roiTseries = [roiTC{goodSubs(iSub),controlROIs(iRoi),1}.tSeries roiTC{goodSubs(iSub),controlROIs(iRoi),2}.tSeries];
-            %         goodVoxels = ~isnan(mean(roiTseries,2));
+            roiTseriesL = [roiTC{goodSubs(iSub),controlROIs(iRoi),1}.tSeries roiTC{goodSubs(iSub),controlROIs(iRoi),2}.tSeries];
+            roiTseriesR = [roiTC{goodSubs(iSub),controlROIs(iRoi)+1,1}.tSeries roiTC{goodSubs(iSub),controlROIs(iRoi)+1,2}.tSeries];
+            roiTseries = [roiTseriesL; roiTseriesR];
+            %keyboard%         goodVoxels = ~isnan(mean(roiTseries,2));
             
             %         roiTseries = roiTseries(goodVoxels,:);
             for rwd=1:2
-                controlTseriesRwd = roiTC{goodSubs(iSub),controlROIs(iRoi),rwd}.tSeries;
+                controlTseriesRwdL = roiTC{goodSubs(iSub),controlROIs(iRoi),rwd}.tSeries;
+                controlTseriesRwdR = roiTC{goodSubs(iSub),controlROIs(iRoi),rwd}.tSeries;
+                controlTseriesRwd = [controlTseriesRwdL; controlTseriesRwdR];
                 controlNullTseriesRwd{iSub,iRoi,rwd} = controlTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==1 & correctTRs{iSub,rwd});
                 controlStimTseriesRwd{iSub,iRoi,rwd} = controlTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==0 & correctTRs{iSub,rwd});
             end
@@ -351,14 +355,6 @@ for onlyCorrect=[0 1 2]
                 binVoxels = goodVoxels & binVoxels & areas{goodSubs(iSub),iRoi}>0;%ONLY V1,V2,V3
                 numBinVoxels(iSub,iRoi,ibin) = sum(binVoxels);
                 
-                %             %remove voxels that include NaNs
-                %             binTseries = [roiTC{goodSubs(iSub),iRoi,1}.tSeries(binVoxels,:) roiTC{goodSubs(iSub),iRoi,2}.tSeries(binVoxels,:)];
-                %             binTseries = binTseries(~isnan(mean(binTseries,2)),:);
-                
-                %             %update number of voxels
-                %             binVoxInd = binVoxInd(~isnan(mean(binTseries,2)));
-                %             numBinVoxels(iSub,iRoi,ibin) = length(binVoxInd);
-                
                 for rwd=1:2
                     binTseriesRwd = roiTC{goodSubs(iSub),iRoi,rwd}.tSeries(binVoxels,:);
                     binNullTseriesRwd{iSub,iRoi,ibin,rwd} = binTseriesRwd(:,nullTrialsTRs{goodSubs(iSub),rwd}==1 & correctTRs{iSub,rwd});
@@ -378,9 +374,7 @@ for onlyCorrect=[0 1 2]
                 if subtractMean
                     binStimTrialTseries{iSub,iRoi,ibin} = binStimTrialTseries{iSub,iRoi,ibin} - subBinMeanNull;
                 end
-                
-                
-                
+
                 %get fMRI response amplitude
                 %STD
                 subBinStdNull{iSub,iRoi,ibin} = squeeze(std(binNullTrialTseries{iSub,iRoi,ibin},0,2));%vox, trial
@@ -393,6 +387,7 @@ for onlyCorrect=[0 1 2]
                 binMeanStimTrial{iSub,iRoi,ibin} = squeeze(nanmean(binStimTrialTseries{iSub,iRoi,ibin},3));%vox, T
                 %regress mean trial
                 ntrials = size(binStimTrialTseries{iSub,iRoi,ibin},3);
+                subBinBetasStim{iSub,iRoi,ibin} = [];
                 for ivox=1:numBinVoxels(iSub,iRoi,ibin)
                     
                     A = zscore(binMeanStimTrial{iSub,iRoi,ibin}(ivox,:));
