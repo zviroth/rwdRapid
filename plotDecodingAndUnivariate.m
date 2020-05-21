@@ -2,10 +2,10 @@
 close all
 clear all
 tic
-onlyCorrect=2;%0=all trials, 1=only correct, -1=only incorrect, 2=valid response
+onlyCorrect=0;%0=all trials, 1=only correct, -1=only incorrect, 2=valid response
 includeControl=0;%left and right DMN trial amplitude
 includePulse = 0;
-subtractMean = 0;
+subtractMean = 1;
 includePupil = 0;
 includePupilBase = 0;
 toZscore=1;%0 or 1
@@ -333,7 +333,8 @@ for arousalType=arousalTypes
             arousalStr = 'DMN';
     end
     title(['contrast: ' arousalStr]);
-    
+    legend('low contrast','high contrast');
+    ylabel('amplitude (z-scored BOLD)');
     %plot mean contrast betas as function of eccentricity for both arousal levels
     isubplot = isubplot+1;
     subplot(rows,cols,isubplot)
@@ -381,7 +382,7 @@ for arousalType=arousalTypes
     end
     title('contrast SNR');
         plotPvals(nbins, squeeze(meanContrastSnr(arousalType,:,:)), squeeze(pvalContrastSnrDiff(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
-
+    xlim([0 nbins+1]);
     
     %contrast CNR
     isubplot = isubplot+1;
@@ -393,7 +394,7 @@ for arousalType=arousalTypes
     end
     title('contrast CNR');
     plotPvals(nbins, squeeze(meanContrastCnr(arousalType,:,:)), squeeze(pvalContrastCnrDiff(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
-
+    xlim([0 nbins+1]);
     
     
     %plot frequency betas as function of eccentricity for both arousal levels
@@ -408,7 +409,8 @@ for arousalType=arousalTypes
     end
     xlim([0 nbins+1]);
     title('frequency');
-    
+    ylabel('amplitude (z-scored BOLD)');
+    xlabel('eccentricity band');
     %plot mean frequency betas as function of eccentricity for both arousal levels
     isubplot = isubplot+1;
     subplot(rows,cols,isubplot)
@@ -416,9 +418,10 @@ for arousalType=arousalTypes
         plot(squeeze(meanFreqMeanBetas(arousalType,:,arousal)),'color',plotColors{arousal});
         hold on
     end
-    plotPvals(nbins, squeeze(meanFreqMeanBetas(arousalType,:,:)), squeeze(pvalDiffBinMeanFreqBetas(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
     xlim([0 nbins+1]);
     title('mean freq');
+    plotPvals(nbins, squeeze(meanFreqMeanBetas(arousalType,:,:)), squeeze(pvalDiffBinMeanFreqBetas(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
+
     
     
     %plot difference between frequency betas as function of eccentricity for both arousal levels
@@ -430,7 +433,7 @@ for arousalType=arousalTypes
     end
     title('diff between freqs');
     plotPvals(nbins, squeeze(meanFreqBetasDiff(arousalType,:,:)), squeeze(pvalDiffBinFreqBetas(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
-
+    xlim([0 nbins+1]);
     
     
     %plot frequency variability
@@ -456,7 +459,7 @@ for arousalType=arousalTypes
     end
     title('freq SNR');
     plotPvals(nbins, squeeze(meanFreqSnr(arousalType,:,:)), squeeze(pvalFreqSnrDiff(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
-
+    xlim([0 nbins+1]);
     
     %plot freq CNR
     isubplot = isubplot+1;
@@ -469,7 +472,7 @@ for arousalType=arousalTypes
     end
     title('freq CNR');
     plotPvals(nbins, squeeze(meanFreqCnr(arousalType,:,:)), squeeze(pvalFreqCnrDiff(arousalType,:)),  sigHeight5, sigHeight1,markerSize, plotColors);
-    
+    xlim([0 nbins+1]);
     
     set(gcf,'position',[70 80 1100 400])
 end
